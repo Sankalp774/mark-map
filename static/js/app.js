@@ -11,6 +11,7 @@ const state = {
   toast: null,
   shot: null,
   loginAgent: null,
+  agentStack: false,
   graphPick: null,
   faqs: [],
   ask: { question: "", answer: null, faq_id: null },
@@ -104,81 +105,56 @@ const DESK_AGENTS = [
   {
     id: "desk",
     name: "Desk runner",
+    file: "Desk Runner.app",
+    face: "boss",
     color: "#f59e0b",
     ring: "Orchestrator",
-    blurb: "Runs when nobody is chatting. Delegates; never writes a mark.",
-    fns: [
-      "Route the teacher’s request to the right specialist",
-      "Call score clerk for incomplete scripts",
-      "Call analyser for class hotspots",
-      "Run PTM / incomplete nags in the background",
-      "Summarise the desk in one short paragraph",
-    ],
+    does: "This is the manager of the other five. When you click Run desk, it does not add marks or write a brief itself. It asks the score clerk who is incomplete, asks the analyser where the class leaked, then nags you if PTM is close. It only speaks when there is something to decide.",
   },
   {
     id: "ingest",
     name: "Ingest clerk",
+    file: "Ingest Clerk.app",
+    face: "reader",
     color: "#14b8a6",
     ring: "Specialist",
-    blurb: "Paper, CSV, or screenshot in. No invented rows.",
-    fns: [
-      "Load demo Term 1 + Midterm",
-      "Ingest a question paper + marks CSV",
-      "Read a student-report screenshot (OCR)",
-      "Split Term 1 and Midterm sections",
-    ],
+    does: "This one files the paper. It reads typed text, a marks CSV, or a screenshot of a report, then splits Term 1 from Midterm. If a roll was not on the page, it will not invent that student.",
   },
   {
     id: "mapper",
     name: "Paper mapper",
+    file: "Paper Mapper.app",
+    face: "map",
     color: "#8b5cf6",
     ring: "Specialist",
-    blurb: "[Chapter] on the paper wins. Human only when unsure.",
-    fns: [
-      "Map Q1–Qn to chapters and max marks",
-      "Keyword-guess untagged questions",
-      "Flag needs_review",
-      "Apply the teacher’s chapter correction",
-    ],
+    does: "This one builds the question map. If the paper says [Linear Equations] on Q9, that tag wins. If there is no tag, it guesses from the wording and marks the question needs review so a teacher can fix it. It never changes a mark.",
   },
   {
     id: "score",
     name: "Score clerk",
+    file: "Score Clerk.app",
+    face: "stern",
     color: "#f43f5e",
     ring: "Specialist",
-    blurb: "Empty stays empty. Briefs stay blocked.",
-    fns: [
-      "Attach CSV cells to questions",
-      "List incomplete rolls",
-      "Never fill a blank with zero",
-      "Show the Q9-blank guardrail on purpose",
-    ],
+    does: "This one attaches each CSV cell to a question. A blank, NA, or dash stays missing — it will not write zero. Any empty cell blocks the PTM brief for that roll. That is the hard gate.",
   },
   {
     id: "analyser",
     name: "Analyser",
+    file: "Analyser.app",
+    face: "think",
     color: "#22c55e",
     ring: "Specialist",
-    blurb: "Marks × chapter × time. No psychology.",
-    fns: [
-      "Per-student % and strong / ok / weak chapters",
-      "Top mark losses (question + chapter)",
-      "Class hotspots (the section leak)",
-      "Year line: Term 1 → Midterm",
-    ],
+    does: "This one does the arithmetic: percent, chapter strong / ok / weak, which question leaked the most marks, and the year line from Term 1 to Midterm. It does not talk about personality, potential, or effort.",
   },
   {
     id: "brief",
     name: "Brief writer",
+    file: "Brief Writer.app",
+    face: "smile",
     color: "#38bdf8",
     ring: "Specialist",
-    blurb: "Two columns, one fact set. Family pane never gets PTM phrasing.",
-    fns: [
-      "Teacher PTM talking points",
-      "Family brief, same numbers, calmer",
-      "Refuse to publish if any cell is empty",
-      "Strip personality / potential claims",
-    ],
+    does: "This one writes two notes from the same numbers: talking points for the teacher’s PTM, and a calmer family brief. The student and parent panes never see the teacher note. If a cell is empty, it writes nothing.",
   },
 ];
 
@@ -223,39 +199,58 @@ function loginView() {
   ]);
 }
 
-function agentSky() {
-  const open = DESK_AGENTS.find((a) => a.id === state.loginAgent);
-  return h("div", { class: "agent-sky", "aria-label": "Strands agents" }, [
-    h("div", { class: "agent-sky-kicker" }, "Strands desk · 6 agents"),
-    h("div", { class: "agent-orbit" }, DESK_AGENTS.map((a, i) =>
-      h("div", {
-        class: "agent-track" + (state.loginAgent === a.id ? " open" : ""),
-        style: `--c:${a.color};--i:${i}`,
-      }, [
-        h("button", {
-          class: "agent-orb" + (state.loginAgent === a.id ? " open" : ""),
-          style: `--c:${a.color};--i:${i}`,
-          title: a.name,
-          onclick: (e) => {
-            e.stopPropagation();
-            state.loginAgent = state.loginAgent === a.id ? null : a.id;
-            render();
-          },
-        }, a.name.split(" ")[0]),
-      ])
-    )),
-    open && h("div", { class: "agent-pop", style: `--c:${open.color}` }, [
-      h("div", { class: "agent-pop-top" }, [
-        h("span", { class: "agent-dot", style: `--c:${open.color}` }),
-        h("div", {}, [
-          h("div", { class: "agent-pop-ring" }, open.ring),
-          h("h3", {}, open.name),
-        ]),
-        h("button", { class: "ghost", onclick: () => { state.loginAgent = null; render(); } }, "Close"),
-      ]),
-      h("p", {}, open.blurb),
-      h("ul", {}, open.fns.map((fn) => h("li", {}, fn))),
+function agentFace(kind, color) {
+  return h("div", { class: "mac-face " + kind, style: `--c:${color}` }, [
+    h("div", { class: "mac-head" }, [
+      h("span", { class: "mac-eye" }),
+      h("span", { class: "mac-eye" }),
+      h("span", { class: "mac-mouth" }),
     ]),
+  ]);
+}
+
+function agentSky() {
+  const fanned = state.agentStack;
+  return h("aside", { class: "mac-stack" + (fanned ? " fanned" : ""), "aria-label": "Strands agents" }, [
+    h("button", {
+      class: "mac-stack-hit",
+      title: fanned ? "Collapse stack" : "Open agent stack",
+      onclick: () => {
+        state.agentStack = !state.agentStack;
+        if (!state.agentStack) state.loginAgent = null;
+        render();
+      },
+    }, fanned ? "Stack" : "Agents"),
+    h("div", { class: "mac-pile" }, DESK_AGENTS.map((a, i) => {
+      const active = state.loginAgent === a.id;
+      return h("button", {
+        class: "mac-win" + (active ? " active" : ""),
+        style: `--c:${a.color};--i:${i};--n:${DESK_AGENTS.length}`,
+        onclick: (e) => {
+          e.stopPropagation();
+          if (!state.agentStack) {
+            state.agentStack = true;
+            state.loginAgent = a.id;
+          } else {
+            state.loginAgent = active ? null : a.id;
+          }
+          render();
+        },
+      }, [
+        h("div", { class: "mac-chrome" }, [
+          h("span", { class: "tl red" }),
+          h("span", { class: "tl yellow" }),
+          h("span", { class: "tl green" }),
+          h("span", { class: "mac-title" }, a.file),
+        ]),
+        h("div", { class: "mac-body" }, [
+          agentFace(a.face, a.color),
+          h("div", { class: "mac-name" }, a.name),
+          h("div", { class: "mac-role" }, a.ring),
+          active && h("p", { class: "mac-does" }, a.does),
+        ]),
+      ]);
+    })),
   ]);
 }
 
