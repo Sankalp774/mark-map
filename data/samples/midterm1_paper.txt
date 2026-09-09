@@ -1,0 +1,35 @@
+Greenfield Public School
+Class 10-B  Mathematics  Midterm 1
+Date: 12 Jul 2026    Max marks: 80    Time: 3 hours
+
+Answer all questions. Show working.
+
+Q1 (4 marks) [Polynomials]
+Find the zeroes of p(x) = x^2 − 2x − 8. Verify the relationship between zeroes and coefficients.
+
+Q2 (4 marks) [Polynomials]
+If the polynomial x^3 − 3x^2 + x + 1 is divided by x − 1, find the remainder using remainder theorem.
+
+Q3 (6 marks) [Linear Equations]
+Solve: x + y = 5 and 2x − y = 4.
+
+Q4 (6 marks) [Linear Equations]
+The cost of 2 kg apples and 1 kg grapes is ₹160. The cost of 1 kg apples and 2 kg grapes is ₹170. Find the cost of 1 kg of each.
+
+Q5 (6 marks) [Triangles]
+In triangle ABC, DE ∥ BC with D on AB and E on AC. If AD = 1.5 cm, BD = 3 cm, AE = 1 cm, find EC.
+
+Q6 (6 marks) [Triangles]
+Two poles of heights 6 m and 11 m stand on a plane. If the distance between the feet is 12 m, find the distance between their tops.
+
+Q7 (8 marks) [Trigonometry]
+If cos A = 12/13, find sin A and tan A, taking A acute.
+
+Q8 (8 marks) [Trigonometry]
+A tree breaks due to a storm and the broken part makes an angle of 30° with the ground. The distance from the foot to the tip is 8 m. Find the original height of the tree.
+
+Q9 (12 marks) [Linear Equations]
+Taxi charges consist of a fixed charge plus a charge per kilometre. A person pays ₹80 for 5 km and ₹100 for 7 km. Find the fixed charge and the charge per km. How much for 10 km?
+
+Q10 (20 marks) [Statistics]
+The marks of 40 students are grouped as 0–10, 10–20, 20–30, 30–40, 40–50 with frequencies 4, 6, 12, 10, 8. Find the mean.
