@@ -10,6 +10,7 @@ const state = {
   nav: "desk",
   toast: null,
   shot: null,
+  loginAgent: null,
   graphPick: null,
   faqs: [],
   ask: { question: "", answer: null, faq_id: null },
@@ -99,6 +100,88 @@ function render() {
   if (state.toast) root.append(h("div", { class: "toast" }, state.toast));
 }
 
+const DESK_AGENTS = [
+  {
+    id: "desk",
+    name: "Desk runner",
+    color: "#f59e0b",
+    ring: "Orchestrator",
+    blurb: "Runs when nobody is chatting. Delegates; never writes a mark.",
+    fns: [
+      "Route the teacher’s request to the right specialist",
+      "Call score clerk for incomplete scripts",
+      "Call analyser for class hotspots",
+      "Run PTM / incomplete nags in the background",
+      "Summarise the desk in one short paragraph",
+    ],
+  },
+  {
+    id: "ingest",
+    name: "Ingest clerk",
+    color: "#14b8a6",
+    ring: "Specialist",
+    blurb: "Paper, CSV, or screenshot in. No invented rows.",
+    fns: [
+      "Load demo Term 1 + Midterm",
+      "Ingest a question paper + marks CSV",
+      "Read a student-report screenshot (OCR)",
+      "Split Term 1 and Midterm sections",
+    ],
+  },
+  {
+    id: "mapper",
+    name: "Paper mapper",
+    color: "#8b5cf6",
+    ring: "Specialist",
+    blurb: "[Chapter] on the paper wins. Human only when unsure.",
+    fns: [
+      "Map Q1–Qn to chapters and max marks",
+      "Keyword-guess untagged questions",
+      "Flag needs_review",
+      "Apply the teacher’s chapter correction",
+    ],
+  },
+  {
+    id: "score",
+    name: "Score clerk",
+    color: "#f43f5e",
+    ring: "Specialist",
+    blurb: "Empty stays empty. Briefs stay blocked.",
+    fns: [
+      "Attach CSV cells to questions",
+      "List incomplete rolls",
+      "Never fill a blank with zero",
+      "Show the Q9-blank guardrail on purpose",
+    ],
+  },
+  {
+    id: "analyser",
+    name: "Analyser",
+    color: "#22c55e",
+    ring: "Specialist",
+    blurb: "Marks × chapter × time. No psychology.",
+    fns: [
+      "Per-student % and strong / ok / weak chapters",
+      "Top mark losses (question + chapter)",
+      "Class hotspots (the section leak)",
+      "Year line: Term 1 → Midterm",
+    ],
+  },
+  {
+    id: "brief",
+    name: "Brief writer",
+    color: "#38bdf8",
+    ring: "Specialist",
+    blurb: "Two columns, one fact set. Family pane never gets PTM phrasing.",
+    fns: [
+      "Teacher PTM talking points",
+      "Family brief, same numbers, calmer",
+      "Refuse to publish if any cell is empty",
+      "Strip personality / potential claims",
+    ],
+  },
+];
+
 function loginView() {
   const doors = [
     { role: "Teacher desk", name: "Kavita Sharma", email: "teacher@markmap.demo", note: "Class ops, graph, requests" },
@@ -108,6 +191,7 @@ function loginView() {
   const emailInput = h("input", { type: "email", value: "teacher@markmap.demo" });
   const passInput = h("input", { type: "password", value: "demo" });
   return h("div", { class: "login" }, [
+    agentSky(),
     h("div", { class: "login-card" }, [
       h("p", { class: "wordmark" }, "Mark Map · Class operations"),
       h("h1", {}, "The marksheet becomes a live class desk."),
@@ -135,6 +219,42 @@ function loginView() {
       }, [emailInput, passInput, h("button", { class: "primary", type: "submit" }, "Open desk")]),
       state.error && h("div", { class: "error" }, state.error),
       h("p", { class: "hint" }, "Password demo. Also 10-A: ira@markmap.demo and parent.ira@markmap.demo"),
+    ]),
+  ]);
+}
+
+function agentSky() {
+  const open = DESK_AGENTS.find((a) => a.id === state.loginAgent);
+  return h("div", { class: "agent-sky", "aria-label": "Strands agents" }, [
+    h("div", { class: "agent-sky-kicker" }, "Strands desk · 6 agents"),
+    h("div", { class: "agent-orbit" }, DESK_AGENTS.map((a, i) =>
+      h("div", {
+        class: "agent-track" + (state.loginAgent === a.id ? " open" : ""),
+        style: `--c:${a.color};--i:${i}`,
+      }, [
+        h("button", {
+          class: "agent-orb" + (state.loginAgent === a.id ? " open" : ""),
+          style: `--c:${a.color};--i:${i}`,
+          title: a.name,
+          onclick: (e) => {
+            e.stopPropagation();
+            state.loginAgent = state.loginAgent === a.id ? null : a.id;
+            render();
+          },
+        }, a.name.split(" ")[0]),
+      ])
+    )),
+    open && h("div", { class: "agent-pop", style: `--c:${open.color}` }, [
+      h("div", { class: "agent-pop-top" }, [
+        h("span", { class: "agent-dot", style: `--c:${open.color}` }),
+        h("div", {}, [
+          h("div", { class: "agent-pop-ring" }, open.ring),
+          h("h3", {}, open.name),
+        ]),
+        h("button", { class: "ghost", onclick: () => { state.loginAgent = null; render(); } }, "Close"),
+      ]),
+      h("p", {}, open.blurb),
+      h("ul", {}, open.fns.map((fn) => h("li", {}, fn))),
     ]),
   ]);
 }
