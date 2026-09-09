@@ -509,6 +509,24 @@ tr.selected { background: #fff7ed; }
   padding: 12px 14px;
   margin-top: 12px;
 }
+.class-select {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #2a313b;
+  background: #171a21;
+  color: #e7e5e4;
+}
+.bubble {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #f5f0e8;
+  font-size: 13px;
+}
+.bubble.teacher { background: #fff7ed; }
+.bubble.parent, .bubble.student { background: #ecfeff; }
+
 .drop {
   border: 1.5px dashed #d6cbb8;
   border-radius: 14px;

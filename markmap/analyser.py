@@ -301,14 +301,18 @@ def class_hotspots(paper: dict[str, Any], rows: list[dict[str, Any]]) -> list[di
     return hotspots
 
 
-def year_line(roll: str, state: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+def year_line(roll: str, state: dict[str, Any] | None = None, class_id: str | None = None) -> list[dict[str, Any]]:
     state = state or store.load()
+    class_id = class_id or config.DEFAULT_CLASS_ID
     points = []
     papers = sorted(
         state["papers"].values(),
         key=lambda p: (_section_rank(p), p.get("date") or "", p.get("id") or ""),
     )
+    # Keep the year line inside one class — Ravi is 10-B, Ira is 10-A.
     for paper in papers:
+        if class_id and (paper.get("class_id") or config.DEFAULT_CLASS_ID) != class_id:
+            continue
         row = (state["rows"].get(paper["id"]) or {}).get(roll)
         if not row:
             continue
@@ -339,13 +343,13 @@ def student_bundle(paper_id: str, roll: str, state: dict[str, Any] | None = None
     if not row:
         raise KeyError("Unknown roll")
     analysis = analyse_row(paper, row)
-    hotspots = class_hotspots(paper, list((state["rows"].get(paper_id) or {}).values()))
+    hotspots = class_hotspots(paper, list((state["rows"].get(paper["id"]) or {}).values()))
     return {
         "paper": _public_paper(paper),
         "row": row,
         "analysis": analysis,
         "hotspots": hotspots,
-        "year": year_line(roll, state),
+        "year": year_line(roll, state, paper.get("class_id")),
         "brain": brain_graph(paper, row, analysis, hotspots),
     }
 
@@ -383,6 +387,7 @@ def _public_paper(paper: dict[str, Any]) -> dict[str, Any]:
         "max_total": paper.get("max_total"),
         "questions": paper.get("questions") or [],
         "source": paper.get("source"),
+        "class_id": paper.get("class_id") or config.DEFAULT_CLASS_ID,
     }
 
 
@@ -392,19 +397,38 @@ def _section_rank(paper: dict[str, Any]) -> int:
     return order.get(section, 50)
 
 
-def resolve_paper(state: dict[str, Any], paper_id: str) -> dict[str, Any] | None:
+def resolve_paper(state: dict[str, Any], paper_id: str, class_id: str | None = None) -> dict[str, Any] | None:
     pid = config.resolve_paper_id(paper_id)
-    return state["papers"].get(pid) or state["papers"].get(paper_id)
+    if ":" in pid:
+        return state["papers"].get(pid)
+    if class_id and class_id != config.DEFAULT_CLASS_ID:
+        keyed = f"{class_id}:{pid}"
+        if keyed in state["papers"]:
+            return state["papers"][keyed]
+    paper = state["papers"].get(pid) or state["papers"].get(paper_id)
+    if paper and class_id and paper.get("class_id") not in {None, class_id}:
+        return None
+    return paper
 
 
-def student_sections(roll: str, state: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+def papers_for_class(state: dict[str, Any], class_id: str | None) -> list[dict[str, Any]]:
+    class_id = class_id or config.DEFAULT_CLASS_ID
+    out = []
+    for paper in state["papers"].values():
+        if (paper.get("class_id") or config.DEFAULT_CLASS_ID) == class_id:
+            out.append(paper)
+    return out
+
+
+def student_sections(roll: str, state: dict[str, Any] | None = None, class_id: str | None = None) -> list[dict[str, Any]]:
     """Term 1 and Midterm as separate report blocks, same roll."""
     from . import briefs
 
     state = state or store.load()
+    class_id = class_id or config.DEFAULT_CLASS_ID
     blocks = []
     for spec in config.SECTIONS:
-        paper = resolve_paper(state, spec["paper_id"])
+        paper = resolve_paper(state, spec["paper_id"], class_id)
         if not paper:
             continue
         row = (state["rows"].get(paper["id"]) or {}).get(roll)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from . import analyser, store
+from . import analyser, config, store
 
 
 def hours_until_ptm(state: dict[str, Any] | None = None) -> float | None:
@@ -20,12 +20,13 @@ def hours_until_ptm(state: dict[str, Any] | None = None) -> float | None:
     return round(delta, 1)
 
 
-def compute_alerts(state: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+def compute_alerts(state: dict[str, Any] | None = None, class_id: str | None = None) -> list[dict[str, Any]]:
     state = state or store.load()
+    class_id = class_id or config.DEFAULT_CLASS_ID
     alerts: list[dict[str, Any]] = []
     hours = hours_until_ptm(state)
     papers = sorted(
-        state["papers"].values(),
+        analyser.papers_for_class(state, class_id),
         key=lambda p: p.get("date") or "",
         reverse=True,
     )

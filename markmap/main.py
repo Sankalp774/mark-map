@@ -84,6 +84,23 @@ class QueryBody(BaseModel):
     faq_id: str | None = None
 
 
+class ClassBody(BaseModel):
+    class_id: str
+
+
+class ReplyBody(BaseModel):
+    body: str
+
+
+class ThreadBody(BaseModel):
+    roll: str
+    body: str
+
+
+class TaskDoneBody(BaseModel):
+    task_id: str
+
+
 def _user(request: Request) -> dict[str, Any]:
     token = request.cookies.get(config.COOKIE_NAME)
     user = auth.user_from_token(token)
@@ -103,6 +120,15 @@ def _can_see(user: dict[str, Any], roll: str) -> bool:
     if user["role"] == "teacher":
         return True
     return user.get("roll") == roll
+
+
+def _class_id(request: Request, user: dict[str, Any]) -> str:
+    if user["role"] == "teacher":
+        cookie = request.cookies.get(config.CLASS_COOKIE)
+        if cookie and cookie in (user.get("class_ids") or []):
+            return cookie
+        return config.DEFAULT_CLASS_ID
+    return user.get("class_id") or config.DEFAULT_CLASS_ID
 
 
 @app.get("/")
@@ -143,25 +169,35 @@ def logout() -> JSONResponse:
 def me(request: Request) -> dict[str, Any]:
     user = _user(request)
     state = store.load()
+    class_id = _class_id(request, user)
+    classes = _class_list(state, user)
     papers = [
         {
             "id": p["id"],
             "title": p.get("title"),
             "section": p.get("section") or p["id"],
             "date": p.get("date"),
+            "class_id": p.get("class_id"),
+            "subject": p.get("subject"),
         }
-        for p in sorted(state["papers"].values(), key=lambda x: x.get("date") or "")
+        for p in sorted(
+            analyser.papers_for_class(state, class_id),
+            key=lambda x: x.get("date") or "",
+        )
     ]
-    kpis = _kpis(state)
+    kpis = _kpis(state, class_id)
+    current = next((c for c in classes if c["id"] == class_id), {"id": class_id, "label": class_id})
     return {
         "user": user,
         "school": state.get("school") or config.SCHOOL,
+        "current_class": current,
+        "classes": classes,
         "papers": papers,
-        "alerts": state.get("alerts") or [],
+        "alerts": desk.compute_alerts(state, class_id),
         "agent_log": state.get("agent_log") or [],
         "health": tools.health(),
         "ptm_hours": desk.hours_until_ptm(state),
-        "workspace": workspace.snapshot(user),
+        "workspace": workspace.snapshot(user, class_id),
         "kpis": kpis,
         "roster_lite": kpis.get("roster_lite") or [],
     }
@@ -285,7 +321,7 @@ def get_year(roll: str, request: Request) -> dict[str, Any]:
     user = _user(request)
     if not _can_see(user, roll):
         raise HTTPException(403, "Not your map.")
-    return {"roll": roll, "year": analyser.year_line(roll)}
+    return {"roll": roll, "year": analyser.year_line(roll, class_id=_class_id(request, user))}
 
 
 @app.get("/api/students/{roll}/sections")
@@ -293,7 +329,7 @@ def get_sections(roll: str, request: Request) -> dict[str, Any]:
     user = _user(request)
     if not _can_see(user, roll):
         raise HTTPException(403, "Not your map.")
-    blocks = analyser.student_sections(roll)
+    blocks = analyser.student_sections(roll, class_id=_class_id(request, user))
     if user["role"] != "teacher":
         for block in blocks:
             briefs_payload = block.get("briefs") or {}
@@ -359,7 +395,7 @@ def desk_alerts(request: Request) -> dict[str, Any]:
 @app.get("/api/workspace")
 def get_workspace(request: Request) -> dict[str, Any]:
     user = _user(request)
-    return workspace.snapshot(user)
+    return workspace.snapshot(user, _class_id(request, user))
 
 
 @app.post("/api/workspace/broadcast")
@@ -367,11 +403,15 @@ def post_broadcast(body: BroadcastBody, request: Request) -> dict[str, Any]:
     user = _teacher(request)
     try:
         item = workspace.broadcast(
-            audience=body.audience, title=body.title, body=body.body, teacher=user["name"]
+            audience=body.audience,
+            title=body.title,
+            body=body.body,
+            teacher=user["name"],
+            class_id=_class_id(request, user),
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    return {"ok": True, "item": item, "workspace": workspace.snapshot(user)}
+    return {"ok": True, "item": item, "workspace": workspace.snapshot(user, _class_id(request, user))}
 
 
 @app.post("/api/workspace/task")
@@ -379,11 +419,16 @@ def post_task(body: TaskBody, request: Request) -> dict[str, Any]:
     user = _teacher(request)
     try:
         item = workspace.assign_task(
-            roll=body.roll, title=body.title, body=body.body, teacher=user["name"], due=body.due
+            roll=body.roll,
+            title=body.title,
+            body=body.body,
+            teacher=user["name"],
+            due=body.due,
+            class_id=_class_id(request, user),
         )
     except (ValueError, KeyError) as exc:
         raise HTTPException(400, str(exc)) from exc
-    return {"ok": True, "item": item, "workspace": workspace.snapshot(user)}
+    return {"ok": True, "item": item, "workspace": workspace.snapshot(user, _class_id(request, user))}
 
 
 @app.post("/api/workspace/calendar")
@@ -391,11 +436,15 @@ def post_calendar(body: CalendarBody, request: Request) -> dict[str, Any]:
     user = _teacher(request)
     try:
         item = workspace.schedule_test(
-            title=body.title, date=body.date, syllabus=body.syllabus, teacher=user["name"]
+            title=body.title,
+            date=body.date,
+            syllabus=body.syllabus,
+            teacher=user["name"],
+            class_id=_class_id(request, user),
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    return {"ok": True, "item": item, "workspace": workspace.snapshot(user)}
+    return {"ok": True, "item": item, "workspace": workspace.snapshot(user, _class_id(request, user))}
 
 
 @app.post("/api/workspace/bonus")
@@ -438,7 +487,7 @@ def post_address(body: AddressBody, request: Request) -> dict[str, Any]:
         "ok": True,
         **result,
         "student": {**bundle, "briefs": briefs.write_briefs(bundle["analysis"], bundle["year"])},
-        "workspace": workspace.snapshot(user),
+        "workspace": workspace.snapshot(user, _class_id(request, user)),
     }
 
 
@@ -458,8 +507,76 @@ def post_query(body: QueryBody, request: Request) -> dict[str, Any]:
     return result
 
 
-def _kpis(state: dict[str, Any]) -> dict[str, Any]:
-    paper = analyser.resolve_paper(state, "midterm") or analyser.resolve_paper(state, "term-1")
+@app.post("/api/class/select")
+def select_class(body: ClassBody, request: Request) -> JSONResponse:
+    user = _teacher(request)
+    if body.class_id not in (user.get("class_ids") or []):
+        raise HTTPException(400, "Unknown class.")
+    payload = {"ok": True, "class_id": body.class_id}
+    response = JSONResponse(payload)
+    response.set_cookie(config.CLASS_COOKIE, body.class_id, httponly=True, samesite="lax", max_age=60 * 60 * 24 * 30)
+    return response
+
+
+@app.post("/api/workspace/broadcast/{broadcast_id}/reply")
+def post_reply(broadcast_id: str, body: ReplyBody, request: Request) -> dict[str, Any]:
+    user = _user(request)
+    try:
+        reply = workspace.reply_broadcast(broadcast_id=broadcast_id, user=user, body=body.body)
+    except (ValueError, KeyError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"ok": True, "reply": reply, "workspace": workspace.snapshot(user, _class_id(request, user))}
+
+
+@app.post("/api/workspace/broadcast/{broadcast_id}/ack")
+def post_ack(broadcast_id: str, request: Request) -> dict[str, Any]:
+    user = _user(request)
+    try:
+        ack = workspace.ack_broadcast(broadcast_id=broadcast_id, user=user)
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return {"ok": True, "ack": ack, "workspace": workspace.snapshot(user, _class_id(request, user))}
+
+
+@app.post("/api/workspace/thread")
+def post_thread(body: ThreadBody, request: Request) -> dict[str, Any]:
+    user = _user(request)
+    class_id = _class_id(request, user)
+    try:
+        result = workspace.thread_message(class_id=class_id, roll=body.roll, user=user, body=body.body)
+    except (ValueError, PermissionError, KeyError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"ok": True, **result, "workspace": workspace.snapshot(user, class_id)}
+
+
+@app.post("/api/workspace/task/done")
+def post_task_done(body: TaskDoneBody, request: Request) -> dict[str, Any]:
+    user = _user(request)
+    try:
+        item = workspace.complete_task(body.task_id, roll=user.get("roll"))
+    except (KeyError, PermissionError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return {"ok": True, "item": item, "workspace": workspace.snapshot(user, _class_id(request, user))}
+
+
+def _class_list(state: dict[str, Any], user: dict[str, Any]) -> list[dict[str, Any]]:
+    catalog = state.get("classes") or {c["id"]: dict(c) for c in config.CLASSES}
+    ids = user.get("class_ids") if user.get("role") == "teacher" else [user.get("class_id") or config.DEFAULT_CLASS_ID]
+    out = []
+    for cid in ids or []:
+        meta = catalog.get(cid) or {"id": cid, "label": cid}
+        papers = analyser.papers_for_class(state, cid)
+        n = 0
+        if papers:
+            latest = sorted(papers, key=lambda p: p.get("date") or "")[-1]
+            n = len(state["rows"].get(latest["id"]) or {})
+        out.append({**meta, "n": n})
+    return out
+
+
+def _kpis(state: dict[str, Any], class_id: str | None = None) -> dict[str, Any]:
+    class_id = class_id or config.DEFAULT_CLASS_ID
+    paper = analyser.resolve_paper(state, "midterm", class_id) or analyser.resolve_paper(state, "term-1", class_id)
     if not paper:
         return {"n": 0, "ready": 0, "incomplete": 0, "hotspot": None, "roster_lite": []}
     bundle = analyser.class_bundle(paper["id"], state)

@@ -94,7 +94,8 @@ def _generate_row(
     incomplete: bool,
 ) -> dict[str, Any]:
     cells: dict[str, float | None] = {}
-    if roll == "17":
+    hero_ok = bool(ravi_cells) and all(q["id"] in ravi_cells for q in questions)
+    if hero_ok:
         for q in questions:
             cells[q["id"]] = float(ravi_cells[q["id"]])
     else:
@@ -102,7 +103,7 @@ def _generate_row(
             qid = q["id"]
             max_m = q["max_marks"]
             if qid == "q9":
-                cells[qid] = float(_clamp(rng.uniform(2, q9_cap), 0, max_m))
+                cells[qid] = float(_clamp(rng.uniform(2, min(q9_cap, max_m)), 0, max_m))
             elif q["chapter"] == "Linear Equations":
                 cells[qid] = float(_clamp(max_m * rng.uniform(0.45, 0.85), 0, max_m))
             elif q["chapter"] in {"Triangles", "Trigonometry", "Polynomials"}:
@@ -111,8 +112,9 @@ def _generate_row(
                 cells[qid] = float(_clamp(max_m * rng.uniform(0.55, 0.95), 0, max_m))
     missing: list[str] = []
     if incomplete:
-        cells["q9"] = None
-        missing = ["q9"]
+        blank = "q9" if "q9" in cells else questions[-1]["id"]
+        cells[blank] = None
+        missing = [blank]
     return {
         "roll": roll,
         "name": name,
@@ -122,6 +124,81 @@ def _generate_row(
     }
 
 
+CLASS_A_STUDENTS: list[tuple[str, str]] = [
+    ("01", "Ira Bose"),
+    ("02", "Neil Kapoor"),
+    ("03", "Aanya Gill"),
+    ("04", "Vivaan Shah"),
+    ("05", "Myra Khanna"),
+    ("06", "Arnav Joshi"),
+    ("07", "Kiara Nair"),
+    ("08", "Reyansh Pal"),
+    ("09", "Anvi Das"),
+    ("10", "Shaurya Jain"),
+    ("11", "Diya Bedi"),
+    ("12", "Kabir Malhotra"),
+]
+
+CLASS_9C_STUDENTS: list[tuple[str, str]] = [
+    ("01", "Om Sen"),
+    ("02", "Tara Iyer"),
+    ("03", "Yug Patel"),
+    ("04", "Inaaya Khan"),
+    ("05", "Aarav Kulkarni"),
+    ("06", "Sana Reddy"),
+    ("07", "Ishaan Bhat"),
+    ("08", "Mira Rao"),
+    ("09", "Dev Menon"),
+    ("10", "Zoya Ali"),
+]
+
+SCIENCE_TERM = """Greenfield Public School
+Class 9-C  Science  Term 1
+Date: 10 Jul 2026    Max marks: 80
+
+Q1 (8 marks) [Matter]
+State the characteristics of particles of matter.
+
+Q2 (8 marks) [Matter]
+Differentiate between solids, liquids and gases with one example each.
+
+Q3 (12 marks) [Cell]
+Draw a plant cell and label five parts.
+
+Q4 (12 marks) [Cell]
+Write the functions of nucleus and mitochondria.
+
+Q5 (20 marks) [Tissues]
+Explain meristematic tissue and name two types.
+
+Q6 (20 marks) [Tissues]
+Compare xylem and phloem.
+"""
+
+SCIENCE_MID = """Greenfield Public School
+Class 9-C  Science  Midterm
+Date: 2 Sep 2026    Max marks: 80
+
+Q1 (8 marks) [Motion]
+Define uniform and non-uniform motion.
+
+Q2 (8 marks) [Motion]
+A car moves 100 m in 5 s. Find its speed.
+
+Q3 (12 marks) [Force]
+State Newton's first law of motion.
+
+Q4 (12 marks) [Force]
+Give two examples of balanced and unbalanced forces.
+
+Q5 (20 marks) [Gravitation]
+State the universal law of gravitation.
+
+Q6 (20 marks)
+Explain why a sheet of paper falls slower than a pebble. Mention air resistance.
+"""
+
+
 def build_rows(
     questions: list[dict[str, Any]],
     *,
@@ -129,16 +206,19 @@ def build_rows(
     ravi_cells: dict[str, int],
     q9_cap: int,
     incomplete_rolls: set[str],
+    students: list[tuple[str, str]] | None = None,
+    hero_roll: str = "17",
 ) -> dict[str, dict[str, Any]]:
     rng = random.Random(seed)
     rows = {}
-    for roll, name in STUDENTS:
+    for roll, name in students or STUDENTS:
+        cells_for_hero = ravi_cells if roll == hero_roll else {}
         row = _generate_row(
             roll,
             name,
             questions,
             rng,
-            ravi_cells,
+            cells_for_hero,
             q9_cap,
             roll in incomplete_rolls,
         )
@@ -151,7 +231,7 @@ def rows_to_csv(rows: dict[str, dict[str, Any]], questions: list[dict[str, Any]]
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow(["roll", "name", *qids])
-    for roll, _name in STUDENTS:
+    for roll in sorted(rows):
         row = rows[roll]
         cells = []
         for qid in qids:
@@ -191,6 +271,8 @@ def demo_users() -> list[dict[str, Any]]:
             "email": "teacher@markmap.demo",
             "name": "Kavita Sharma",
             "role": "teacher",
+            "class_id": "10-B",
+            "class_ids": [c["id"] for c in config.CLASSES],
             "password": config.DEMO_PASSWORD,
         },
         {
@@ -198,6 +280,7 @@ def demo_users() -> list[dict[str, Any]]:
             "name": "Ravi Mehta",
             "role": "student",
             "roll": "17",
+            "class_id": "10-B",
             "password": config.DEMO_PASSWORD,
         },
         {
@@ -205,6 +288,23 @@ def demo_users() -> list[dict[str, Any]]:
             "name": "Parent of Ravi Mehta",
             "role": "parent",
             "roll": "17",
+            "class_id": "10-B",
+            "password": config.DEMO_PASSWORD,
+        },
+        {
+            "email": "ira@markmap.demo",
+            "name": "Ira Bose",
+            "role": "student",
+            "roll": "01",
+            "class_id": "10-A",
+            "password": config.DEMO_PASSWORD,
+        },
+        {
+            "email": "parent.ira@markmap.demo",
+            "name": "Parent of Ira Bose",
+            "role": "parent",
+            "roll": "01",
+            "class_id": "10-A",
             "password": config.DEMO_PASSWORD,
         },
     ]
@@ -220,6 +320,9 @@ def ingest_paper(
     replace_rows: bool = True,
     section: str | None = None,
     source: str = "demo",
+    class_id: str = "10-B",
+    subject: str | None = None,
+    class_name: str | None = None,
 ) -> dict[str, Any]:
     paper_id = config.resolve_paper_id(paper_id)
     questions = analyser.map_paper(paper_text)
@@ -229,6 +332,8 @@ def ingest_paper(
     rows = {row["roll"]: row for row in rows_list}
     max_total = sum(q["max_marks"] for q in questions)
     section = section or paper_id
+    class_name = class_name or class_id
+    subject = subject or config.SCHOOL["subject"]
 
     def _mut(state: dict[str, Any]) -> None:
         state["papers"][paper_id] = {
@@ -236,8 +341,9 @@ def ingest_paper(
             "title": title,
             "section": section,
             "source": source,
-            "subject": config.SCHOOL["subject"],
-            "class_name": config.SCHOOL["class_name"],
+            "class_id": class_id,
+            "subject": subject,
+            "class_name": class_name,
             "date": date,
             "max_total": max_total,
             "paper_text": paper_text,
@@ -264,6 +370,65 @@ def ingest_paper(
     }
 
 
+def ensure_classes(state: dict[str, Any]) -> None:
+    state.setdefault("classes", {})
+    for item in config.CLASSES:
+        state["classes"].setdefault(item["id"], dict(item))
+    for paper in (state.get("papers") or {}).values():
+        paper.setdefault("class_id", config.DEFAULT_CLASS_ID)
+    for collection in ("broadcasts", "tasks", "calendar", "threads", "interventions"):
+        for item in state.get(collection) or []:
+            item.setdefault("class_id", config.DEFAULT_CLASS_ID)
+
+
+def seed_sister_classes() -> None:
+    """10-A Mathematics and 9-C Science so the teacher can switch classes."""
+    q1 = analyser.map_paper(_read_paper("midterm1_paper.txt"))
+    q2 = analyser.map_paper(_read_paper("midterm2_paper.txt"))
+    a1 = build_rows(
+        q1, seed=11, ravi_cells={}, q9_cap=8, incomplete_rolls=set(),
+        students=CLASS_A_STUDENTS, hero_roll="",
+    )
+    a2 = build_rows(
+        q2, seed=12, ravi_cells={}, q9_cap=6, incomplete_rolls={"03"},
+        students=CLASS_A_STUDENTS, hero_roll="",
+    )
+    ingest_paper(
+        paper_id="10-A:term-1", title="Term 1", date="2026-07-14",
+        paper_text=_read_paper("midterm1_paper.txt"), csv_text=rows_to_csv(a1, q1),
+        section="term-1", source="demo", class_id="10-A", class_name="10-A",
+        subject="Mathematics",
+    )
+    ingest_paper(
+        paper_id="10-A:midterm", title="Midterm", date="2026-09-05",
+        paper_text=_read_paper("midterm2_paper.txt"), csv_text=rows_to_csv(a2, q2),
+        section="midterm", source="demo", class_id="10-A", class_name="10-A",
+        subject="Mathematics",
+    )
+    s1q = analyser.map_paper(SCIENCE_TERM)
+    s2q = analyser.map_paper(SCIENCE_MID)
+    s1 = build_rows(
+        s1q, seed=21, ravi_cells={}, q9_cap=8, incomplete_rolls=set(),
+        students=CLASS_9C_STUDENTS, hero_roll="",
+    )
+    s2 = build_rows(
+        s2q, seed=22, ravi_cells={}, q9_cap=6, incomplete_rolls={"04"},
+        students=CLASS_9C_STUDENTS, hero_roll="",
+    )
+    ingest_paper(
+        paper_id="9-C:term-1", title="Term 1", date="2026-07-10",
+        paper_text=SCIENCE_TERM, csv_text=rows_to_csv(s1, s1q),
+        section="term-1", source="demo", class_id="9-C", class_name="9-C",
+        subject="Science",
+    )
+    ingest_paper(
+        paper_id="9-C:midterm", title="Midterm", date="2026-09-02",
+        paper_text=SCIENCE_MID, csv_text=rows_to_csv(s2, s2q),
+        section="midterm", source="demo", class_id="9-C", class_name="9-C",
+        subject="Science",
+    )
+
+
 def migrate_legacy_ids(state: dict[str, Any]) -> None:
     mapping = {"midterm-1": "term-1", "midterm-2": "midterm"}
     titles = {"term-1": "Term 1", "midterm": "Midterm"}
@@ -276,6 +441,7 @@ def migrate_legacy_ids(state: dict[str, Any]) -> None:
             state["papers"][new] = paper
         if old in state.get("rows", {}) and new not in state["rows"]:
             state["rows"][new] = state["rows"].pop(old)
+    ensure_classes(state)
 
 
 def load_demo_midterm_2() -> dict[str, Any]:
@@ -291,6 +457,9 @@ def load_demo_midterm_2() -> dict[str, Any]:
         csv_text=(config.SAMPLES_DIR / "midterm1_marks.csv").read_text(encoding="utf-8"),
         section="term-1",
         source="demo",
+        class_id="10-B",
+        class_name="10-B",
+        subject="Mathematics",
     )
     m2 = ingest_paper(
         paper_id="midterm",
@@ -300,7 +469,12 @@ def load_demo_midterm_2() -> dict[str, Any]:
         csv_text=(config.SAMPLES_DIR / "midterm2_marks.csv").read_text(encoding="utf-8"),
         section="midterm",
         source="demo",
+        class_id="10-B",
+        class_name="10-B",
+        subject="Mathematics",
     )
+    store.update(ensure_classes)
+    seed_sister_classes()
     from . import desk, workspace
 
     workspace.seed_defaults()

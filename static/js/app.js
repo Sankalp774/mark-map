@@ -20,14 +20,15 @@ const TEACHER_NAV = [
   ["class", "Class map"],
   ["student", "Student"],
   ["graph", "Local graph"],
+  ["loop", "Class loop"],
   ["requests", "Requests"],
   ["calendar", "Calendar"],
   ["ingest", "Ingest"],
 ];
 const FAMILY_NAV = [
   ["map", "Report"],
+  ["loop", "Class loop"],
   ["tasks", "Tasks"],
-  ["inbox", "Inbox"],
   ["calendar", "Calendar"],
   ["ask", "Ask the desk"],
 ];
@@ -110,7 +111,7 @@ function loginView() {
     h("div", { class: "login-card" }, [
       h("p", { class: "wordmark" }, "Mark Map · Class operations"),
       h("h1", {}, "The marksheet becomes a live class desk."),
-      h("p", { class: "lede" }, "Term 1 and Midterm stay apart. Briefs wait for every cell. Screenshot reports, graph actions, parent requests — one fact set."),
+      h("p", { class: "lede" }, "Pick a class. Talk to the room. Parents and students talk back. Briefs still wait for every cell."),
       h("div", { class: "doors" }, doors.map((d) =>
         h("button", { class: "door", onclick: () => { emailInput.value = d.email; passInput.value = "demo"; } }, [
           h("div", { class: "role" }, d.role),
@@ -133,7 +134,7 @@ function loginView() {
         },
       }, [emailInput, passInput, h("button", { class: "primary", type: "submit" }, "Open desk")]),
       state.error && h("div", { class: "error" }, state.error),
-      h("p", { class: "hint" }, "Password for all three demo doors: demo"),
+      h("p", { class: "hint" }, "Password demo. Also 10-A: ira@markmap.demo and parent.ira@markmap.demo"),
     ]),
   ]);
 }
@@ -153,18 +154,34 @@ function fillNav() {
   const nav = document.querySelector("#sidenav");
   if (!nav) return;
   const items = state.me.user.role === "teacher" ? TEACHER_NAV : FAMILY_NAV;
+  const cur = state.me.current_class || {};
+  const unread = (state.me.workspace || {}).unread || 0;
   nav.innerHTML = "";
-  nav.append(
+  const kids = [
     h("div", { class: "brand" }, "Mark Map"),
-    h("div", { class: "school" }, `${state.me.school?.name || ""} · ${state.me.school?.class_name || ""} Mathematics`),
-    ...items.map(([id, label]) =>
-      h("button", {
-        class: "navbtn" + (state.nav === id ? " active" : ""),
-        onclick: () => { state.nav = id; render(); },
-      }, label)
-    ),
-    h("button", { class: "navbtn", style: "margin-top:auto", onclick: logout }, "Sign out")
-  );
+    h("div", { class: "school" }, `${state.me.school?.name || ""} · ${cur.label || cur.id || ""} ${cur.subject || ""}`),
+  ];
+  if (state.me.user.role === "teacher" && (state.me.classes || []).length) {
+    kids.push(h("label", { class: "school", style: "display:grid;gap:4px" }, [
+      "Class",
+      h("select", {
+        class: "class-select",
+        onchange: (e) => switchClass(e.target.value),
+      }, (state.me.classes || []).map((c) => h("option", {
+        value: c.id,
+        selected: c.id === cur.id,
+      }, `${c.label} · ${c.subject} · ${c.n || 0}`))),
+    ]));
+  }
+  items.forEach(([id, label]) => {
+    const badge = id === "loop" && unread ? ` (${unread})` : "";
+    kids.push(h("button", {
+      class: "navbtn" + (state.nav === id ? " active" : ""),
+      onclick: () => { state.nav = id; render(); },
+    }, label + badge));
+  });
+  kids.push(h("button", { class: "navbtn", style: "margin-top:auto", onclick: logout }, "Sign out"));
+  nav.append(...kids);
 }
 
 function fillTop() {
@@ -201,6 +218,7 @@ function teacherMain() {
     case "class": return classPane();
     case "student": return studentPane(true);
     case "graph": return graphPane();
+    case "loop": return loopPane(true);
     case "requests": return requestsPane();
     case "calendar": return calendarPane(true);
     case "ingest": return ingestPane();
@@ -210,8 +228,9 @@ function teacherMain() {
 
 function familyMain() {
   switch (state.nav) {
+    case "loop": return loopPane(false);
+    case "inbox": return loopPane(false);
     case "tasks": return tasksPane();
-    case "inbox": return inboxPane();
     case "calendar": return calendarPane(false);
     case "ask": return askPane();
     default: return familyReportPane();
@@ -487,17 +506,108 @@ function tasksPane() {
       h("strong", {}, `${t.status === "done" ? "Done" : "Open"} · ${t.title}`),
       h("div", {}, t.body),
       t.due && h("div", { class: "when" }, `Due ${t.due}`),
+      t.status !== "done" && h("button", { class: "ghost", onclick: () => doneTask(t.id) }, "Mark done"),
     ])),
   ]);
 }
 
-function inboxPane() {
-  const items = (state.me.workspace || {}).broadcasts || [];
-  return h("div", { class: "card" }, [
-    h("h3", {}, "Inbox"),
-    ...items.map((b) => h("div", { class: "msg" }, [h("strong", {}, b.title), h("div", {}, b.body), h("div", { class: "when" }, `${b.audience} · ${b.at}`)])),
-    !items.length && h("p", { class: "sub" }, "No requests from the teacher yet."),
+function loopPane(teacher) {
+  const ws = state.me.workspace || {};
+  const broadcasts = ws.broadcasts || [];
+  const threads = ws.threads || [];
+  const roll = state.me.user.roll || state.selectedRoll || "17";
+  const replyBox = (id) => {
+    const ta = h("input", { placeholder: "Reply to the class…" });
+    return h("form", {
+      class: "form-grid",
+      onsubmit: async (e) => {
+        e.preventDefault();
+        try {
+          const data = await api(`/api/workspace/broadcast/${id}/reply`, { method: "POST", json: { body: ta.value } });
+          state.me.workspace = data.workspace;
+          toast("Reply posted.");
+          render();
+        } catch (err) { state.error = err.message; render(); }
+      },
+    }, [ta, h("button", { class: "ghost", type: "submit" }, "Reply")]);
+  };
+  const threadBox = h("input", { placeholder: teacher ? "Message this family…" : "Message the teacher…" });
+  const rollSel = teacher ? h("select", {}, (state.me.roster_lite || []).map((r) => h("option", { value: r.roll, selected: r.roll === roll }, `${r.roll} ${r.name}`))) : null;
+  return h("div", { class: "two-col" }, [
+    h("div", {}, [
+      h("div", { class: "card" }, [
+        h("h3", {}, "Class loop"),
+        h("p", { class: "sub" }, "Requests, acknowledgements, and replies in this class. This is a conversation, not a notice board."),
+        ...broadcasts.map((b) => h("div", { class: "msg" }, [
+          h("strong", {}, `${b.audience} · ${b.title}`),
+          h("div", {}, b.body),
+          h("div", { class: "when" }, `${b.teacher || "Teacher"} · ${(b.acks || []).length} acknowledged · ${(b.replies || []).length} replies`),
+          ...(b.replies || []).map((r) => h("div", { class: "bubble " + r.role }, `${r.name}: ${r.body}`)),
+          !teacher && h("div", { class: "row-actions" }, [
+            h("button", { class: "ghost", onclick: () => ackBroadcast(b.id) }, "Acknowledge"),
+          ]),
+          replyBox(b.id),
+        ])),
+        !broadcasts.length && h("p", { class: "sub" }, "No class requests yet. Teacher can send one from Requests."),
+      ]),
+      h("div", { class: "card", style: "margin-top:12px" }, [
+        h("h3", {}, "Direct thread"),
+        h("form", {
+          class: "form-grid",
+          onsubmit: async (e) => {
+            e.preventDefault();
+            const target = teacher ? (rollSel && rollSel.value) : roll;
+            try {
+              const data = await api("/api/workspace/thread", { method: "POST", json: { roll: target, body: threadBox.value } });
+              state.me.workspace = data.workspace;
+              threadBox.value = "";
+              toast("Message sent.");
+              render();
+            } catch (err) { state.error = err.message; render(); }
+          },
+        }, [
+          teacher && rollSel,
+          threadBox,
+          h("button", { class: "primary", type: "submit" }, teacher ? "Send to family" : "Send to teacher"),
+        ]),
+        ...threads.map((t) => h("div", { class: "msg" }, [
+          h("strong", {}, `Thread · roll ${t.roll}`),
+          ...(t.messages || []).slice(-8).map((m) => h("div", { class: "bubble " + m.role }, `${m.name}: ${m.body}`)),
+        ])),
+      ]),
+    ]),
+    h("div", { class: "card" }, [
+      h("h3", {}, "Live"),
+      h("p", { class: "sub" }, `${ws.unread || 0} unread in this class. The loop refreshes while you stay signed in.`),
+      ...(ws.tasks || []).slice(0, 6).map((t) => h("div", { class: "msg" }, t.title)),
+    ]),
   ]);
+}
+
+async function ackBroadcast(id) {
+  try {
+    const data = await api(`/api/workspace/broadcast/${id}/ack`, { method: "POST" });
+    state.me.workspace = data.workspace;
+    toast("Acknowledged.");
+    render();
+  } catch (err) {
+    state.error = err.message;
+    render();
+  }
+}
+
+async function switchClass(id) {
+  try {
+    await api("/api/class/select", { method: "POST", json: { class_id: id } });
+    state.classData = null;
+    state.student = null;
+    state.paperId = id === "10-B" ? "midterm" : `${id}:midterm`;
+    await boot();
+    toast(`Now in ${id}.`);
+  } catch (err) {
+    state.error = err.message;
+    render();
+  }
 }
 
 function askPane() {
@@ -897,7 +1007,36 @@ async function refreshMe() {
   state.me = await api("/api/me");
 }
 
+async function doneTask(id) {
+  try {
+    const data = await api("/api/workspace/task/done", { method: "POST", json: { task_id: id } });
+    state.me.workspace = data.workspace;
+    toast("Task marked done.");
+    render();
+  } catch (err) {
+    state.error = err.message;
+    render();
+  }
+}
+
+let pollTimer = null;
+function startPoll() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(async () => {
+    if (!state.me) return;
+    try {
+      const prev = JSON.stringify(state.me.workspace || {});
+      const me = await api("/api/me");
+      const changed = JSON.stringify(me.workspace || {}) !== prev;
+      state.me = me;
+      if (changed && (state.nav === "loop" || state.nav === "tasks")) render();
+      else { fillNav(); fillTop(); }
+    } catch (_) {}
+  }, 7000);
+}
+
 async function logout() {
+  clearInterval(pollTimer);
   await api("/api/logout", { method: "POST" });
   state.me = null;
   state.classData = null;
@@ -915,7 +1054,7 @@ async function boot() {
       try { state.faqs = (await api("/api/query/faqs")).faqs || []; } catch (_) {}
     }
     const papers = state.me.papers || [];
-    const pick = papers.find((p) => p.id === state.paperId) || papers.find((p) => p.id === "midterm") || papers[0];
+    const pick = papers.find((p) => p.id === state.paperId) || papers.find((p) => (p.section || p.id).includes("midterm")) || papers[0];
     if (pick) {
       state.paperId = pick.id;
       await refreshClass();
@@ -929,6 +1068,7 @@ async function boot() {
   } catch {
     state.me = null;
   }
+  startPoll();
   render();
 }
 

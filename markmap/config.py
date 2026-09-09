@@ -17,6 +17,7 @@ STATIC_DIR = ROOT / "static"
 STORE_PATH = Path(os.getenv("MARKMAP_STORE", DATA_DIR / "markmap.json"))
 SECRET = os.getenv("MARKMAP_SECRET", "markmap-demo-secret")
 COOKIE_NAME = "markmap_session"
+CLASS_COOKIE = "markmap_class"
 
 AWS_REGION = os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "us-west-2"
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-sonnet-4-6")
@@ -29,6 +30,34 @@ SCHOOL = {
     "subject": "Mathematics",
     "teacher": "Kavita Sharma",
 }
+
+CLASSES = (
+    {
+        "id": "10-B",
+        "label": "10-B",
+        "grade": "10",
+        "section": "B",
+        "subject": "Mathematics",
+        "teacher": "Kavita Sharma",
+    },
+    {
+        "id": "10-A",
+        "label": "10-A",
+        "grade": "10",
+        "section": "A",
+        "subject": "Mathematics",
+        "teacher": "Kavita Sharma",
+    },
+    {
+        "id": "9-C",
+        "label": "9-C",
+        "grade": "9",
+        "section": "C",
+        "subject": "Science",
+        "teacher": "Kavita Sharma",
+    },
+)
+DEFAULT_CLASS_ID = "10-B"
 
 SECTIONS = (
     {"id": "term-1", "title": "Term 1", "paper_id": "term-1"},

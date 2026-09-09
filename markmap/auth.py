@@ -37,9 +37,17 @@ def login(email: str, password: str) -> dict[str, Any]:
 
 
 def _public(user: dict[str, Any]) -> dict[str, Any]:
+    from . import config
+
+    role = user["role"]
+    class_ids = user.get("class_ids")
+    if not class_ids:
+        class_ids = [c["id"] for c in config.CLASSES] if role == "teacher" else [user.get("class_id") or config.DEFAULT_CLASS_ID]
     return {
         "email": user["email"],
         "name": user["name"],
-        "role": user["role"],
+        "role": role,
         "roll": user.get("roll"),
+        "class_id": user.get("class_id") or config.DEFAULT_CLASS_ID,
+        "class_ids": class_ids,
     }
