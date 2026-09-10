@@ -27,6 +27,8 @@ EMPTY: dict[str, Any] = {
     "interventions": [],
     "classes": {},
     "threads": [],
+    "desk_cycles": [],
+    "desk_snapshot": {},
 }
 
 

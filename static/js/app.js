@@ -355,6 +355,8 @@ function familyMain() {
 function deskPane() {
   const k = state.me.kpis || {};
   const alerts = state.me.alerts || [];
+  const cycle = (state.me.workspace || {}).desk_cycle;
+  const proposals = (state.me.workspace || {}).proposals || [];
   return h("div", {}, [
     h("div", { class: "toolbar" }, [
       btn("Load class (Term 1 + Midterm)", loadDemo, "primary"),
@@ -368,10 +370,29 @@ function deskPane() {
       stat("Hotspot", k.hotspot ? `Q${k.hotspot.number} · ${k.hotspot.percent}%` : "—"),
     ]),
     h("div", { class: "alerts" }, alerts.map((a) => h("div", { class: `pill ${a.level}` }, a.text))),
-    h("div", { class: "two-col" }, [
+    cycle && h("div", { class: "card" }, [
+      h("h3", {}, "Desk cycle"),
+      h("p", { class: "sub" }, "Observe → plan → act → wait. The desk does not invent marks or unlock blocked briefs."),
+      h("div", { class: "cycle" }, (cycle.steps || []).map((s) =>
+        h("div", { class: "cycle-step " + s.phase }, [
+          h("div", { class: "cycle-phase" }, s.phase),
+          h("div", {}, s.text),
+        ])
+      )),
+      cycle.observe?.strategy?.recommendation?.leverage && h("p", { class: "sub", style: "margin-top:10px" }, cycle.observe.strategy.recommendation.leverage),
+    ]),
+    proposals.length > 0 && h("div", { class: "card", style: "margin-top:12px" }, [
+      h("h3", {}, "Waiting for you"),
+      ...proposals.map((p) => h("div", { class: "msg" }, [
+        h("strong", {}, `${p.kind} · ${p.chapter}`),
+        h("div", {}, p.proposal),
+        h("button", { class: "primary", style: "margin-top:8px", onclick: () => approveIntervention(p.id) }, "Approve intervention"),
+      ])),
+    ]),
+    h("div", { class: "two-col", style: "margin-top:12px" }, [
       h("div", { class: "card" }, [
         h("h3", {}, "Live operations"),
-        h("p", { class: "sub" }, "Broadcasts, calendar, and graph actions write to the same JSON store the briefs read."),
+        h("p", { class: "sub" }, "The desk proposes. You approve. Students get the task. Next paper measures the outcome."),
         h("div", { class: "row-actions" }, [
           h("button", { class: "ghost", onclick: () => { state.nav = "requests"; render(); } }, "Requests"),
           h("button", { class: "ghost", onclick: () => { state.nav = "graph"; render(); } }, "Local graph"),
@@ -607,7 +628,8 @@ function familySection(block) {
     h("div", { class: "sub" }, a.complete ? `${fmt(a.got)} / ${fmt(a.max)}` : "Brief blocked until every cell is filled."),
     chaptersCard(a.chapters),
     lossesCard(a.losses),
-    brief && (brief.blocked ? h("div", { class: "brief blocked" }, brief.reason) : h("div", { class: "brief" }, brief.family || "")),
+    memoryCard(block.memory),
+    brief && (brief.blocked) ? h("div", { class: "brief blocked" }, brief.reason) : h("div", { class: "brief" }, brief.family || "")),
     brainCardStatic(block.brain, `${block.title} · local graph`),
   ]);
 }
@@ -843,6 +865,7 @@ function studentCard(s, teacher) {
     yearCard(s.year || []),
     chaptersCard(a.chapters),
     lossesCard(a.losses),
+    memoryCard(s.memory),
     h("div", { class: "briefs" }, [
       teacher && h("div", { class: b.blocked ? "brief blocked" : "brief" }, [h("h4", {}, "Teacher brief"), b.blocked ? b.reason : b.teacher]),
       h("div", { class: b.blocked ? "brief blocked" : "brief" }, [h("h4", {}, "Family brief"), b.blocked ? b.reason : b.family]),
@@ -866,6 +889,18 @@ function chaptersCard(chapters) {
     ]),
     h("div", { class: `bar ${c.band}` }, h("span", { style: `width:${c.percent}%` })),
   ])));
+}
+
+function memoryCard(mem) {
+  if (!mem) return null;
+  const trends = (mem.trends || []).slice(0, 4);
+  return h("div", { class: "memory" }, [
+    h("div", { class: "section-kicker" }, "Student memory"),
+    h("p", { class: "sub" }, mem.readout || ""),
+    ...trends.map((t) => h("div", { class: "sub" },
+      `[[${t.chapter}]] ${t.from ?? "—"}% → ${t.to ?? "—"}% (${t.delta > 0 ? "+" : ""}${t.delta})`
+    )),
+  ]);
 }
 
 function lossesCard(losses) {
@@ -1031,11 +1066,23 @@ async function runDesk() {
   try {
     await api("/api/desk/run", { method: "POST", json: {} });
     await refreshMe();
-    toast("Desk alerts refreshed.");
+    toast("Desk cycle ran: observe → plan → act.");
   } catch (err) {
     state.error = err.message;
   } finally {
     state.busy = "";
+    render();
+  }
+}
+
+async function approveIntervention(id) {
+  try {
+    const data = await api("/api/workspace/intervention/approve", { method: "POST", json: { intervention_id: id } });
+    state.me.workspace = data.workspace;
+    toast("Intervention approved. Students have the task.");
+    render();
+  } catch (err) {
+    state.error = err.message;
     render();
   }
 }

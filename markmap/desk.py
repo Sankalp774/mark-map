@@ -1,11 +1,11 @@
-"""Desk runner — alerts when nobody is chatting."""
+"""Desk runner — observe → plan → act → wait. Does not invent marks."""
 
 from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any
 
-from . import analyser, config, store
+from . import analyser, config, loop, memory, store, workspace
 
 
 def hours_until_ptm(state: dict[str, Any] | None = None) -> float | None:
@@ -102,24 +102,209 @@ def compute_alerts(state: dict[str, Any] | None = None, class_id: str | None = N
     return alerts
 
 
-def run_desk() -> dict[str, Any]:
+def observe(class_id: str | None = None) -> dict[str, Any]:
     state = store.load()
-    alerts = compute_alerts(state)
-
-    def _mut(s: dict[str, Any]) -> None:
-        s["alerts"] = alerts
-
-    store.update(_mut)
-    store.audit("run_desk", {"n": len(alerts)})
+    class_id = class_id or config.DEFAULT_CLASS_ID
+    papers = sorted(
+        analyser.papers_for_class(state, class_id),
+        key=lambda p: p.get("date") or "",
+        reverse=True,
+    )
+    paper = papers[0] if papers else None
+    if not paper:
+        return {
+            "class_id": class_id,
+            "paper_id": None,
+            "n": 0,
+            "ready": 0,
+            "incomplete": [],
+            "briefs_blocked": True,
+            "strategy": None,
+        }
+    rows = list((state["rows"].get(paper["id"]) or {}).values())
+    incomplete = [row for row in rows if not row.get("complete")]
+    strategy = memory.class_strategy(paper["id"], class_id, state)
     return {
-        "alerts": alerts,
-        "strands": False,
-        "mode": "deterministic",
-        "summary": _summary(alerts),
+        "class_id": class_id,
+        "paper_id": paper["id"],
+        "title": paper.get("title"),
+        "n": len(rows),
+        "ready": len(rows) - len(incomplete),
+        "incomplete": [{"roll": r["roll"], "name": r["name"], "missing": r.get("missing")} for r in incomplete],
+        "briefs_blocked": bool(incomplete),
+        "strategy": strategy,
+        "hours": hours_until_ptm(state),
     }
 
 
-def _summary(alerts: list[dict[str, Any]]) -> str:
-    if not alerts:
-        return "Desk is clear."
-    return " ".join(a["text"] + "." for a in alerts)
+def run_cycle(class_id: str | None = None) -> dict[str, Any]:
+    """OBSERVE → PLAN → ACT → WAIT. Python owns the acts; the model only narrates."""
+    class_id = class_id or config.DEFAULT_CLASS_ID
+    state = store.load()
+    prev = (state.get("desk_snapshot") or {}).get(class_id) or {}
+    seen = observe(class_id)
+    steps: list[dict[str, Any]] = []
+    acts: list[dict[str, Any]] = []
+
+    steps.append(
+        {
+            "phase": "observe",
+            "text": _observe_text(seen),
+        }
+    )
+
+    if seen["incomplete"]:
+        rolls = [r["roll"] for r in seen["incomplete"]]
+        steps.append(
+            {
+                "phase": "plan",
+                "text": (
+                    f"PTM briefs stay blocked. {len(rolls)} rows still miss cells. "
+                    "I will not generate briefs. I will open one teacher task to fill them."
+                ),
+            }
+        )
+        task = _ensure_fill_task(class_id, seen["paper_id"], rolls)
+        if task:
+            acts.append({"kind": "teacher_task", "id": task["id"], "title": task["title"]})
+            steps.append(
+                {
+                    "phase": "act",
+                    "text": f"Created teacher task to resolve missing cells: {', '.join(rolls)}.",
+                }
+            )
+        else:
+            steps.append({"phase": "act", "text": "Fill-marks task already on the desk."})
+        steps.append({"phase": "verify", "text": "Briefs remain locked until every cell is filled."})
+    else:
+        unlocked = prev.get("incomplete_n", 0) > 0
+        if unlocked:
+            steps.append(
+                {
+                    "phase": "observe",
+                    "text": f"{seen['ready']}/{seen['n']} complete. Briefs are now unlocked.",
+                }
+            )
+        rec = (seen.get("strategy") or {}).get("recommendation") or {}
+        if rec.get("kind") == "class_reteach":
+            steps.append({"phase": "plan", "text": rec.get("leverage")})
+            proposed = loop.propose(
+                class_id=class_id,
+                kind="class_reteach",
+                chapter=rec.get("chapter") or "Unknown",
+                question_id=rec.get("question_id"),
+                paper_id=seen["paper_id"],
+                rolls=next(
+                    (g["rolls"] for g in (seen["strategy"] or {}).get("gaps") or [] if g.get("dominant")),
+                    [],
+                ),
+                proposal=(
+                    f"15-minute re-teach: {rec.get('chapter')} word problems. "
+                    f"{rec.get('affected')} students affected. "
+                    "Do not assign 18 separate generic drills."
+                ),
+                code=f"class_reteach:{seen['paper_id']}:{rec.get('question_id')}",
+            )
+            if proposed:
+                acts.append({"kind": "propose", "id": proposed["id"]})
+                steps.append(
+                    {
+                        "phase": "act",
+                        "text": "Prepared a class remediation request. Waiting for teacher approval.",
+                    }
+                )
+            else:
+                steps.append({"phase": "act", "text": "Class remediation is already proposed or assigned."})
+        elif rec.get("leverage"):
+            steps.append({"phase": "plan", "text": rec["leverage"]})
+
+    measured = loop.measure_due(class_id)
+    if measured:
+        lines = []
+        for item in measured:
+            delta = (item.get("outcome") or {}).get("delta")
+            who = item.get("roll")
+            lines.append(f"{who}: {item.get('chapter')} {delta:+} points after intervention.")
+        steps.append({"phase": "verify", "text": "Measured outcomes. " + " ".join(lines)})
+
+    steps.append(
+        {
+            "phase": "wait",
+            "text": "Waiting for new information (filled cells, an approval, or the next paper).",
+        }
+    )
+
+    alerts = compute_alerts(store.load(), class_id)
+    cycle = {
+        "at": workspace._now(),
+        "class_id": class_id,
+        "observe": seen,
+        "steps": steps,
+        "acts": acts,
+        "alerts": alerts,
+        "summary": " ".join(s["text"] for s in steps if s["phase"] in {"observe", "act", "wait"}),
+    }
+
+    def _mut(s: dict[str, Any]) -> None:
+        s["alerts"] = alerts
+        s.setdefault("desk_cycles", []).append(cycle)
+        s["desk_cycles"] = s["desk_cycles"][-20:]
+        s.setdefault("desk_snapshot", {})[class_id] = {
+            "incomplete_n": len(seen["incomplete"]),
+            "ready": seen["ready"],
+            "paper_id": seen["paper_id"],
+        }
+
+    store.update(_mut)
+    store.audit("run_desk", {"class_id": class_id, "acts": len(acts)})
+    store.agent_log("desk_runner", cycle["summary"][:500], {"class_id": class_id})
+    return {
+        "alerts": alerts,
+        "strands": False,
+        "mode": "cycle",
+        "cycle": cycle,
+        "summary": cycle["summary"],
+    }
+
+
+def run_desk() -> dict[str, Any]:
+    return run_cycle(config.DEFAULT_CLASS_ID)
+
+
+def _observe_text(seen: dict[str, Any]) -> str:
+    if not seen.get("paper_id"):
+        return "No paper on this class desk yet."
+    n_inc = len(seen["incomplete"])
+    if n_inc:
+        return (
+            f"{seen['title']}: {n_inc} students have incomplete marks. "
+            f"{seen['ready']}/{seen['n']} ready. PTM briefs are blocked."
+        )
+    rec = (seen.get("strategy") or {}).get("recommendation") or {}
+    extra = rec.get("leverage") or ""
+    return f"{seen['title']}: {seen['ready']}/{seen['n']} complete. Briefs unlocked. {extra}".strip()
+
+
+def _ensure_fill_task(class_id: str, paper_id: str | None, rolls: list[str]) -> dict[str, Any] | None:
+    title = "Resolve missing mark cells"
+    state = store.load()
+    for task in state.get("tasks") or []:
+        if (
+            task.get("title") == title
+            and task.get("class_id") == class_id
+            and task.get("paper_id") == paper_id
+            and task.get("status") != "done"
+        ):
+            return None
+    return workspace.assign_task(
+        roll="*",
+        title=title,
+        body=(
+            f"Briefs are blocked. Fill missing cells for rolls {', '.join(rolls)}. "
+            "Do not invent marks."
+        ),
+        teacher="Desk runner",
+        paper_id=paper_id,
+        class_id=class_id,
+        audience="teacher",
+    )

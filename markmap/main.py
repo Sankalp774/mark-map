@@ -46,6 +46,10 @@ class DeskBody(BaseModel):
     prompt: str | None = None
 
 
+class ApproveBody(BaseModel):
+    intervention_id: str | None = None
+
+
 class BroadcastBody(BaseModel):
     audience: str
     title: str
@@ -342,6 +346,16 @@ def get_sections(roll: str, request: Request) -> dict[str, Any]:
     return {"roll": roll, "sections": blocks}
 
 
+@app.get("/api/students/{roll}/memory")
+def get_memory(roll: str, request: Request) -> dict[str, Any]:
+    user = _user(request)
+    if not _can_see(user, roll):
+        raise HTTPException(403, "Not your map.")
+    from . import memory
+
+    return memory.student_memory(roll, _class_id(request, user))
+
+
 @app.post("/api/ingest/screenshot")
 async def ingest_screenshot(request: Request, shot: UploadFile = File(...)) -> dict[str, Any]:
     _teacher(request)
@@ -380,10 +394,33 @@ def demo_screenshot(request: Request) -> dict[str, Any]:
 
 @app.post("/api/desk/run")
 async def desk_run(request: Request, body: DeskBody | None = None) -> dict[str, Any]:
-    _teacher(request)
+    user = _teacher(request)
     prompt = body.prompt if body else None
-    result = await asyncio.to_thread(agent_runtime.run_desk_agent, prompt)
+    class_id = _class_id(request, user)
+    result = await asyncio.to_thread(agent_runtime.run_desk_agent, prompt, class_id)
     return result
+
+
+@app.get("/api/desk/cycle")
+def desk_cycle(request: Request) -> dict[str, Any]:
+    user = _teacher(request)
+    class_id = _class_id(request, user)
+    snap = workspace.snapshot(user, class_id)
+    return {"cycle": snap.get("desk_cycle"), "proposals": snap.get("proposals") or []}
+
+
+@app.post("/api/workspace/intervention/approve")
+def approve_intervention(body: ApproveBody, request: Request) -> dict[str, Any]:
+    user = _teacher(request)
+    if not body.intervention_id:
+        raise HTTPException(400, "intervention_id required")
+    from . import loop
+
+    try:
+        item = loop.approve(body.intervention_id, user["name"])
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return {"ok": True, "item": item, "workspace": workspace.snapshot(user, _class_id(request, user))}
 
 
 @app.get("/api/desk/alerts")

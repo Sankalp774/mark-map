@@ -20,10 +20,9 @@ Specialists (call them, do not recompute numbers yourself):
 - brief_writer — teacher vs family brief (will refuse if a cell is empty)
 
 When asked to run the desk:
-1. Call score_clerk for incomplete rolls.
-2. Call analyser for class hotspots.
-3. Call run_desk_nags.
-4. Summarise alerts in one short paragraph for the teacher.
+1. Call run_desk_nags — it already OBSERVES, PLANS, and ACTS in Python.
+2. Narrate that cycle. Do not invent marks. Do not unlock incomplete briefs.
+3. If a class reteach was proposed, tell the teacher it is waiting for approval.
 """.strip()
 
 INGEST_PROMPT = "You ingest papers, CSVs, and student-report screenshots. Call load_demo_midterm_2, ingest_paper_and_marks, or ingest_screenshot_report. Split Term 1 and Midterm. Never invent rows."
@@ -91,36 +90,30 @@ def build_desk():
     return desk
 
 
-def run_desk_agent(prompt: str | None = None) -> dict[str, Any]:
-    if not config.strands_enabled():
-        from . import desk
+def run_desk_agent(prompt: str | None = None, class_id: str | None = None) -> dict[str, Any]:
+    from . import desk
 
-        result = desk.run_desk()
-        result["note"] = (
-            "Deterministic desk. Add AWS credentials and Bedrock model access "
-            "to run the Strands orchestrator."
+    cycle = desk.run_cycle(class_id or config.DEFAULT_CLASS_ID)
+    if not config.strands_enabled():
+        cycle["note"] = (
+            "Cycle ran in Python (observe → plan → act). Add AWS credentials "
+            "to let the Strands desk narrate it."
         )
-        return result
+        return cycle
 
     message = prompt or (
-        "Run the desk for Midterm 2. Check incomplete scripts, class hotspots, "
-        "and PTM readiness. Use your specialists. Do not invent marks."
+        "Narrate this desk cycle. Do not invent marks. Do not unlock blocked briefs.\n"
+        f"{cycle.get('summary')}"
     )
     desk_agent = build_desk()
     response = desk_agent(message)
     text = str(response)
     store.agent_log("desk_orchestrator", text[:2000], {"mode": "strands"})
-    from . import desk
-
-    alerts = desk.compute_alerts()
-    store.update(lambda s: s.__setitem__("alerts", alerts))
-    return {
-        "alerts": alerts,
-        "strands": True,
-        "mode": "strands",
-        "summary": text,
-        "model": config.BEDROCK_MODEL_ID,
-    }
+    cycle["strands"] = True
+    cycle["mode"] = "strands"
+    cycle["summary"] = text
+    cycle["model"] = config.BEDROCK_MODEL_ID
+    return cycle
 
 
 def run_prompt(prompt: str) -> dict[str, Any]:

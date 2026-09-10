@@ -40,5 +40,5 @@ def test_screenshot_report_splits_sections(tmp_store):
     ocr.ingest_parsed_report(parsed, source="screenshot")
     blocks = analyser.student_sections("17")
     assert [b["title"] for b in blocks] == ["Term 1", "Midterm"]
-    assert blocks[1]["analysis"]["percent"] == 68.8
+    assert blocks[1]["analysis"]["percent"] == 72.5
     assert blocks[1]["briefs"]["blocked"] is False

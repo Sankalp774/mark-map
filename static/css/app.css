@@ -226,6 +226,28 @@ button {
   color: var(--c);
   margin-top: 2px;
 }
+.cycle { display: grid; gap: 8px; margin-top: 10px; }
+.cycle-step {
+  border-left: 3px solid var(--line);
+  padding: 8px 10px;
+  background: #fff;
+  border-radius: 0 10px 10px 0;
+}
+.cycle-step.observe { border-color: #38bdf8; }
+.cycle-step.plan { border-color: #a78bfa; }
+.cycle-step.act { border-color: #f59e0b; }
+.cycle-step.verify { border-color: #22c55e; }
+.cycle-step.wait { border-color: #a8a29e; }
+.cycle-phase {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.memory { margin: 12px 0; padding: 10px 12px; background: #f6f1e8; border-radius: 12px; }
+
 .mac-does {
   margin: 10px 0 0;
   font-size: 12.5px;

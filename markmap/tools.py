@@ -110,9 +110,9 @@ def write_student_briefs(roll: str, paper_id: str = "midterm") -> str:
 
 @strands_tool
 def run_desk_nags() -> str:
-    """Compute incomplete-script and PTM-window alerts. Safe to run when nobody is chatting."""
-    result = desk.run_desk()
-    store.agent_log("desk_runner", result["summary"])
+    """Run the observe → plan → act desk cycle. Does not invent marks or unlock blocked briefs."""
+    result = desk.run_cycle()
+    store.agent_log("desk_runner", result.get("summary") or "")
     return _dumps(result)
 
 

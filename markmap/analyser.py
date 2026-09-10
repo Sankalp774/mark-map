@@ -351,6 +351,7 @@ def student_bundle(paper_id: str, roll: str, state: dict[str, Any] | None = None
         "hotspots": hotspots,
         "year": year_line(roll, state, paper.get("class_id")),
         "brain": brain_graph(paper, row, analysis, hotspots),
+        "memory": _student_memory(roll, paper.get("class_id") or config.DEFAULT_CLASS_ID, state),
     }
 
 
@@ -569,3 +570,9 @@ def _band(percent: float) -> str:
 def contains_forbidden(text: str) -> bool:
     blob = text.lower()
     return any(word in blob for word in FORBIDDEN_CLAIMS)
+
+
+def _student_memory(roll: str, class_id: str, state: dict[str, Any]) -> dict[str, Any]:
+    from . import memory
+
+    return memory.student_memory(roll, class_id, state)

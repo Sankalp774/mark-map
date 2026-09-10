@@ -49,8 +49,8 @@ INCOMPLETE_ROLLS = {"04", "11", "28"}
 RAVI_M2 = {
     "q1": 3,
     "q2": 4,
-    "q3": 2,
-    "q4": 3,
+    "q3": 4,
+    "q4": 4,
     "q5": 5,
     "q6": 6,
     "q7": 7,
@@ -59,17 +59,17 @@ RAVI_M2 = {
     "q10": 16,
 }
 
-# Midterm 1 Ravi: same weak chapter, slightly lower overall.
+# Term 1: weaker Linear Equations. Midterm improved Q3/Q4; Q9 word problem still leaks.
 RAVI_M1 = {
     "q1": 3,
     "q2": 3,
-    "q3": 2,
+    "q3": 1,
     "q4": 2,
     "q5": 5,
     "q6": 5,
     "q7": 6,
     "q8": 6,
-    "q9": 4,
+    "q9": 3,
     "q10": 14,
 }
 
@@ -478,7 +478,10 @@ def load_demo_midterm_2() -> dict[str, Any]:
     from . import desk, workspace
 
     workspace.seed_defaults()
-    desk.run_desk()
+    from . import loop
+
+    loop.seed_ravi_history()
+    desk.run_cycle("10-B")
     return {"term_1": m1, "midterm": m2}
 
 

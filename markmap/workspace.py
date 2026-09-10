@@ -31,11 +31,23 @@ def snapshot(user: dict[str, Any] | None = None, class_id: str | None = None) ->
     calendar = [c for c in (state.get("calendar") or []) if _in_class(c, class_id)]
     threads = [t for t in (state.get("threads") or []) if _in_class(t, class_id)]
     if role in {"student", "parent"} and roll:
-        tasks = [t for t in tasks if t.get("roll") in {None, roll, "*"}]
+        tasks = [
+            t
+            for t in tasks
+            if t.get("audience") != "teacher" and t.get("roll") in {None, roll, "*"}
+        ]
         audiences = {"students", "all", "parents"} if role == "parent" else {"students", "all"}
         broadcasts = [b for b in broadcasts if b.get("audience") in audiences or b.get("roll") == roll]
         threads = [t for t in threads if t.get("roll") == roll]
     unread = _unread(role, roll, broadcasts, threads)
+    cycles = [c for c in (state.get("desk_cycles") or []) if c.get("class_id") == class_id]
+    proposals = [
+        i
+        for i in (state.get("interventions") or [])
+        if _in_class(i, class_id)
+        and i.get("status") == "proposed"
+        and (role == "teacher" or i.get("roll") == roll)
+    ]
     return {
         "class_id": class_id,
         "tasks": sorted(tasks, key=lambda t: t.get("at") or "", reverse=True)[:40],
@@ -43,6 +55,8 @@ def snapshot(user: dict[str, Any] | None = None, class_id: str | None = None) ->
         "calendar": sorted(calendar, key=lambda c: c.get("date") or ""),
         "threads": sorted(threads, key=lambda t: t.get("updated_at") or t.get("at") or "", reverse=True)[:40],
         "unread": unread,
+        "desk_cycle": cycles[-1] if cycles else None,
+        "proposals": proposals[-10:],
         "interventions": [
             i
             for i in (state.get("interventions") or [])
@@ -139,6 +153,7 @@ def assign_task(
     question_id: str | None = None,
     paper_id: str | None = None,
     class_id: str = "10-B",
+    audience: str = "students",
 ) -> dict[str, Any]:
     roll = roll.strip()
     title = title.strip()
@@ -157,6 +172,7 @@ def assign_task(
         "question_id": question_id,
         "paper_id": paper_id or "midterm",
         "class_id": class_id,
+        "audience": audience,
         "teacher": teacher,
         "at": _now(),
     }
