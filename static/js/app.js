@@ -758,9 +758,9 @@ function nodeDifficulty(n) {
 }
 
 function difficultyColor(level) {
-  if (level === "hard") return "#ef4444";
-  if (level === "medium") return "#eab308";
-  return "#22c55e";
+  if (level === "hard") return "#dc2626";
+  if (level === "medium") return "#facc15";
+  return "#16a34a";
 }
 
 function tipText(n) {
@@ -1450,8 +1450,7 @@ function mindmapCurve(a, b) {
 
 function nodeFill(n) {
   if (n.kind === "student") return "#f59e0b";
-  if (n.kind === "paper") return "#e7e5e4";
-  if (n.empty) return "#0d0f14";
+  if (n.kind === "paper") return "#cbd5e1";
   return difficultyColor(nodeDifficulty(n));
 }
 
@@ -1484,12 +1483,16 @@ function mountMindmap(host, graph, interactive = true) {
   for (const e of edges) {
     const a = byId[e.source];
     const b = byId[e.target];
+    const edgeNode = (b.kind === "question" || b.kind === "chapter") ? b : a;
+    const edgeColor = (e.kind === "asks" || e.kind === "contains")
+      ? difficultyColor(nodeDifficulty(edgeNode))
+      : (e.kind === "weak" ? "#dc2626" : e.kind === "strong" ? "#16a34a" : "#64748b");
     const path = svgEl("path", {
       class: `mm-edge mm-${e.kind}`,
       d: mindmapCurve(a, b),
       "data-a": e.source,
       "data-b": e.target,
-      stroke: (e.kind === "asks" || e.kind === "contains") ? difficultyColor(nodeDifficulty(b.kind === "question" || b.kind === "chapter" ? b : a)) : null,
+      style: `stroke:${edgeColor};fill:none;stroke-width:${e.kind === "asks" || e.kind === "contains" ? 2.2 : 1.4}`,
     });
     edgeLayer.append(path);
     edgeEls.push({ el: path, a: e.source, b: e.target });
@@ -1505,11 +1508,16 @@ function mountMindmap(host, graph, interactive = true) {
     const fill = nodeFill(n);
     g.append(
       svgEl("circle", {
+        r: Math.max(n.r + 16, 24),
+        fill: "transparent",
+        class: "mm-hit",
+      }),
+      svgEl("circle", {
         r: n.r,
         fill,
         class: "mm-dot",
-        stroke: n.empty ? "#eab308" : "rgba(255,255,255,0.22)",
-        "stroke-width": n.empty ? 2 : 1,
+        stroke: n.empty ? "#facc15" : "rgba(15,23,42,0.35)",
+        "stroke-width": n.empty ? 2 : 1.5,
         "stroke-dasharray": n.empty ? "3 3" : null,
       }),
       svgEl("text", {
@@ -1517,15 +1525,18 @@ function mountMindmap(host, graph, interactive = true) {
         x: 0,
         y: n.r + 16,
         "text-anchor": "middle",
+        fill: (n.kind === "question" || n.kind === "chapter") ? fill : null,
       }, label),
     );
     if (interactive) {
       g.style.cursor = "pointer";
-      g.addEventListener("mouseenter", (ev) => {
+      const onOver = (ev) => {
+        ev.stopPropagation();
         focusMindmap(n, nodes, edgeEls, nodeEls);
         showMindTip(host, n, ev);
-      });
-      g.addEventListener("mousemove", (ev) => showMindTip(host, n, ev));
+      };
+      g.addEventListener("pointerenter", onOver);
+      g.addEventListener("pointermove", onOver);
       g.addEventListener("click", (ev) => {
         ev.stopPropagation();
         state.graphPick = n;
@@ -1536,9 +1547,9 @@ function mountMindmap(host, graph, interactive = true) {
     nodeEls.push({ el: g, id: n.id });
   }
   svg.append(edgeLayer, nodeLayer);
-  const tip = h("div", { class: "mm-tip", hidden: true });
+  const tip = h("div", { class: "mm-tip" }, " ");
   if (interactive) {
-    svg.addEventListener("mouseleave", () => {
+    svg.addEventListener("pointerleave", () => {
       clearMindmapFocus(edgeEls, nodeEls);
       hideMindTip(host);
     });
@@ -1550,18 +1561,18 @@ function mountMindmap(host, graph, interactive = true) {
 function showMindTip(host, n, ev) {
   const tip = host.querySelector(".mm-tip");
   if (!tip) return;
-  tip.hidden = false;
   tip.textContent = tipText(n);
+  tip.classList.add("show");
   const box = host.getBoundingClientRect();
-  const x = ev.clientX - box.left;
-  const y = ev.clientY - box.top;
+  const x = Math.min(box.width - 24, Math.max(24, ev.clientX - box.left));
+  const y = Math.max(28, ev.clientY - box.top);
   tip.style.left = `${x}px`;
-  tip.style.top = `${Math.max(18, y - 8)}px`;
+  tip.style.top = `${y}px`;
 }
 
 function hideMindTip(host) {
   const tip = host.querySelector(".mm-tip");
-  if (tip) tip.hidden = true;
+  if (tip) tip.classList.remove("show");
 }
 
 function focusMindmap(n, nodes, edgeEls, nodeEls) {
