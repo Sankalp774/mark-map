@@ -231,13 +231,13 @@ button {
   border-left: 3px solid var(--line);
   padding: 8px 10px;
   background: #fff;
-  border-radius: 0 10px 10px 0;
+  border-radius: 0 12px 12px 0;
 }
-.cycle-step.observe { border-color: #38bdf8; }
-.cycle-step.plan { border-color: #a78bfa; }
-.cycle-step.act { border-color: #f59e0b; }
-.cycle-step.verify { border-color: #22c55e; }
-.cycle-step.wait { border-color: #a8a29e; }
+.cycle-step.observe { border-color: #38bdf8; background: #e0f2fe; }
+.cycle-step.plan { border-color: #a78bfa; background: #ede9fe; }
+.cycle-step.act { border-color: #f59e0b; background: #fff7ed; }
+.cycle-step.verify { border-color: #22c55e; background: #f0fdf4; }
+.cycle-step.wait { border-color: #a8a29e; background: #f5f5f4; }
 .cycle-phase {
   font-family: var(--mono);
   font-size: 10px;
@@ -249,10 +249,14 @@ button {
 .trace { display: grid; gap: 6px; margin-top: 10px; font-family: var(--mono); font-size: 13px; }
 .trace-item {
   padding: 7px 10px;
-  border-radius: 8px;
+  border-radius: 12px;
   background: #fff;
   border: 1px solid var(--line);
 }
+.trace-item.ok { background: #f0fdf4; border-color: #bbf7d0; }
+.trace-item.warn { background: #fefce8; border-color: #fde68a; }
+.trace-item.next { background: #fff7ed; border-color: #fed7aa; }
+.trace-item.wait { background: #f5f5f4; border-color: #e7e5e4; }
 .trace-item.ok::before { content: "✓ "; color: var(--green); }
 .trace-item.warn::before { content: "⚠ "; color: var(--amber); }
 .trace-item.next::before { content: "→ "; color: var(--stamp); }
@@ -463,13 +467,15 @@ tr.selected { background: #fff7ed; }
 }
 .brief {
   border: 1px solid var(--line);
-  border-radius: 12px;
+  border-radius: 16px;
   padding: 12px;
   white-space: pre-wrap;
   font-size: 13.5px;
   line-height: 1.5;
   min-height: 160px;
+  background: #ecfeff;
 }
+.briefs .brief:first-child { background: #fff7ed; }
 .brief h4 {
   margin: 0 0 8px;
   font-size: 11px;
@@ -720,13 +726,53 @@ tr.selected { background: #fff7ed; }
 }
 .chip:hover, .chip.active { border-color: var(--stamp); background: var(--stamp-soft); }
 .msg {
-  background: #fff;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 18px;
   padding: 12px 14px;
   margin-bottom: 8px;
 }
 .msg .when { font-size: 11px; color: var(--muted); }
+.loop-card {
+  border-radius: 20px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  border: 1px solid transparent;
+}
+.loop-card h4 {
+  margin: 4px 0 6px;
+  font-family: var(--serif);
+  font-size: 18px;
+}
+.loop-card .loop-body { margin: 0 0 8px; line-height: 1.45; }
+.loop-kicker {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--stamp);
+  margin-bottom: 2px;
+}
+.loop-card.audience-students {
+  background: #ecfeff;
+  border-color: #67e8f9;
+}
+.loop-card.audience-parents {
+  background: #fff7ed;
+  border-color: #fdba74;
+}
+.loop-card.audience-all {
+  background: #fefce8;
+  border-color: #fde68a;
+}
+.loop-card.audience-teacher {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+}
+.loop-card.thread-card {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
 .inspector {
   background: #16181f;
   color: #e7e5e4;
@@ -744,13 +790,14 @@ tr.selected { background: #fff7ed; }
 }
 .bubble {
   margin-top: 8px;
-  padding: 8px 10px;
-  border-radius: 10px;
+  padding: 9px 12px;
+  border-radius: 14px;
   background: #f5f0e8;
   font-size: 13px;
 }
-.bubble.teacher { background: #fff7ed; }
-.bubble.parent, .bubble.student { background: #ecfeff; }
+.bubble.teacher { background: #ffedd5; }
+.bubble.parent { background: #cffafe; }
+.bubble.student { background: #d1fae5; }
 
 .drop {
   border: 1.5px dashed #d6cbb8;
@@ -768,9 +815,13 @@ tr.selected { background: #fff7ed; }
 .stat {
   background: var(--sheet);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 14px 16px;
 }
+.stats-row .stat:nth-child(1) { background: #ecfeff; border-color: #a5f3fc; }
+.stats-row .stat:nth-child(2) { background: #fff7ed; border-color: #fed7aa; }
+.stats-row .stat:nth-child(3) { background: #fefce8; border-color: #fde68a; }
+.stats-row .stat:nth-child(4) { background: #f0fdf4; border-color: #bbf7d0; }
 .stat .v { font-family: var(--serif); font-size: 32px; letter-spacing: -0.03em; }
 .two-col {
   display: grid;

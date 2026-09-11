@@ -35,6 +35,13 @@ const FAMILY_NAV = [
   ["ask", "Ask the desk"],
 ];
 
+function prettyAudience(audience) {
+  const key = String(audience || "").toLowerCase();
+  const map = { students: "Students", parents: "Parents", all: "All", teacher: "Teacher" };
+  if (map[key]) return map[key];
+  return key ? key.charAt(0).toUpperCase() + key.slice(1) : "";
+}
+
 function errText(data, fallback) {
   const d = data && data.detail;
   if (typeof d === "string") return d;
@@ -528,10 +535,19 @@ function requestsPane() {
     h("div", { class: "card" }, [
       h("h3", {}, "Outbox"),
       ...(ws.broadcasts || []).slice(0, 8).map((b) =>
-        h("div", { class: "msg" }, [h("strong", {}, `${b.audience}: ${b.title}`), h("div", {}, b.body), h("div", { class: "when" }, b.at)])
+        h("div", { class: "loop-card audience-" + (b.audience || "all") }, [
+          h("div", { class: "loop-kicker" }, prettyAudience(b.audience)),
+          h("strong", {}, b.title),
+          h("div", {}, b.body),
+          h("div", { class: "when" }, b.at),
+        ])
       ),
       ...(ws.tasks || []).slice(0, 8).map((t) =>
-        h("div", { class: "msg" }, [h("strong", {}, `Task · ${t.roll || "all"} · ${t.title}`), h("div", {}, t.body)])
+        h("div", { class: "loop-card audience-teacher" }, [
+          h("div", { class: "loop-kicker" }, t.roll && t.roll !== "*" ? `Roll ${t.roll}` : "Task"),
+          h("strong", {}, t.title),
+          h("div", {}, t.body),
+        ])
       ),
     ]),
   ]);
@@ -667,8 +683,9 @@ function tasksPane() {
   if (!tasks.length) return h("div", { class: "card" }, [h("h3", {}, "Tasks"), h("p", {}, "No tasks yet.")]);
   return h("div", { class: "card" }, [
     h("h3", {}, "Assigned work"),
-    ...tasks.map((t) => h("div", { class: "msg" }, [
-      h("strong", {}, `${t.status === "done" ? "Done" : "Open"} · ${t.title}`),
+    ...tasks.map((t) => h("article", { class: "loop-card audience-students" }, [
+      h("div", { class: "loop-kicker" }, t.status === "done" ? "Done" : "Open"),
+      h("strong", {}, t.title),
       h("div", {}, t.body),
       t.due && h("div", { class: "when" }, `Due ${t.due}`),
       t.status !== "done" && h("button", { class: "ghost", onclick: () => doneTask(t.id) }, "Mark done"),
@@ -703,9 +720,10 @@ function loopPane(teacher) {
       h("div", { class: "card" }, [
         h("h3", {}, "Class loop"),
         h("p", { class: "sub" }, "Requests, acknowledgements, and replies in this class. This is a conversation, not a notice board."),
-        ...broadcasts.map((b) => h("div", { class: "msg" }, [
-          h("strong", {}, `${b.audience} · ${b.title}`),
-          h("div", {}, b.body),
+        ...broadcasts.map((b) => h("article", { class: "loop-card audience-" + (b.audience || "all") }, [
+          h("div", { class: "loop-kicker" }, prettyAudience(b.audience)),
+          h("h4", {}, b.title),
+          h("p", { class: "loop-body" }, b.body),
           h("div", { class: "when" }, `${b.teacher || "Teacher"} · ${(b.acks || []).length} acknowledged · ${(b.replies || []).length} replies`),
           ...(b.replies || []).map((r) => h("div", { class: "bubble " + r.role }, `${r.name}: ${r.body}`)),
           !teacher && h("div", { class: "row-actions" }, [
@@ -735,8 +753,8 @@ function loopPane(teacher) {
           threadBox,
           h("button", { class: "primary", type: "submit" }, teacher ? "Send to family" : "Send to teacher"),
         ]),
-        ...threads.map((t) => h("div", { class: "msg" }, [
-          h("strong", {}, `Thread · roll ${t.roll}`),
+        ...threads.map((t) => h("article", { class: "loop-card thread-card" }, [
+          h("div", { class: "loop-kicker" }, `Thread · roll ${t.roll}`),
           ...(t.messages || []).slice(-8).map((m) => h("div", { class: "bubble " + m.role }, `${m.name}: ${m.body}`)),
         ])),
       ]),
@@ -744,7 +762,9 @@ function loopPane(teacher) {
     h("div", { class: "card" }, [
       h("h3", {}, "Live"),
       h("p", { class: "sub" }, `${ws.unread || 0} unread in this class. The loop refreshes while you stay signed in.`),
-      ...(ws.tasks || []).slice(0, 6).map((t) => h("div", { class: "msg" }, t.title)),
+      ...(ws.tasks || []).slice(0, 6).map((t) =>
+        h("div", { class: "loop-card audience-teacher" }, t.title)
+      ),
     ]),
   ]);
 }
