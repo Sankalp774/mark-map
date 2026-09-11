@@ -5,6 +5,7 @@ const state = {
   student: null,
   sections: [],
   selectedRoll: "17",
+  peekRoll: null,
   error: "",
   busy: "",
   nav: "desk",
@@ -126,6 +127,7 @@ function render() {
   fillTop();
   fillMain();
   fillInspector();
+  attachGlass();
   const old = root.querySelector(".toast");
   if (old) old.remove();
   if (state.toast) root.append(h("div", { class: "toast" }, state.toast));
@@ -197,7 +199,6 @@ function loginView() {
   const emailInput = h("input", { type: "email", value: "teacher@markmap.demo" });
   const passInput = h("input", { type: "password", value: "demo" });
   return h("div", { class: "login" }, [
-    agentSky(),
     h("div", { class: "login-card" }, [
       h("p", { class: "wordmark" }, "Mark Map · Class operations"),
       h("h1", {}, "The marksheet becomes a live class desk."),
@@ -228,6 +229,7 @@ function loginView() {
       h("p", { class: "hint" }, "Password demo. Also 10-A: ira@markmap.demo and parent.ira@markmap.demo"),
       h("button", { class: "ghost", style: "margin-top:10px", onclick: resetDemo }, "Reset demo class"),
     ]),
+    agentSky(),
   ]);
 }
 
@@ -308,10 +310,32 @@ function shell() {
     h("aside", { class: "sidenav", id: "sidenav", "aria-label": "Main" }),
     h("div", { class: "workspace" }, [
       h("header", { class: "topbar", id: "topbar" }),
-      h("div", { class: "main-pane", id: "main-pane" }),
+      h("div", { class: "stage" }, [
+        h("div", { class: "main-pane", id: "main-pane" }),
+        h("aside", {
+          class: "glass-widget",
+          id: "glass-widget",
+          "aria-label": "Selected student",
+        }, h("div", { class: "glass-inner", id: "inspector" })),
+      ]),
     ]),
-    h("aside", { class: "inspector-rail", id: "inspector", "aria-label": "Detail" }),
   ]);
+}
+
+function attachGlass() {
+  const el = document.querySelector("#glass-widget");
+  if (!el || !window.liquidGlass) return;
+  if (state.glassFx) {
+    try { state.glassFx.refresh(); } catch (_) {}
+    return;
+  }
+  state.glassFx = window.liquidGlass(el, {
+    scale: -72,
+    chroma: 4,
+    blur: 4,
+    fallbackBlur: 18,
+    radius: 28,
+  });
 }
 
 function fillNav() {
@@ -357,43 +381,127 @@ function fillNav() {
   nav.append(...kids);
 }
 
+function pickStudent(roll) {
+  if (!roll) return;
+  state.peekRoll = null;
+  state.selectedRoll = roll;
+  state.nav = "student";
+  selectStudent(roll);
+}
+
 function fillInspector(payload) {
   const el = document.querySelector("#inspector");
   if (!el) return;
   const view = payload || inspectorPayload();
+  const roster = glassRoster();
+  const current = roster.find((r) => r.roll === state.selectedRoll) || roster[0];
+  const blocked = current && current.complete === false;
+  const teacher = state.me && state.me.user && state.me.user.role === "teacher";
+  const hops = teacher
+    ? [["desk", "Desk"], ["class", "Class"], ["student", "Student"], ["graph", "Graph"]]
+    : [["map", "Report"], ["tasks", "Tasks"], ["ask", "Ask"]];
+  const picker = roster.length
+    ? h("label", { class: "glass-pick-wrap" }, [
+        h("span", { class: "sr-only" }, "Select student"),
+        h("select", {
+          class: "glass-pick",
+          "aria-label": "Select student",
+          onchange: (e) => pickStudent(e.target.value),
+        }, roster.map((r) => h("option", {
+          value: r.roll,
+          selected: r.roll === (current && current.roll),
+        }, r.name))),
+      ])
+    : h("div", { class: "name" }, (view && view.title) || "No student yet");
   el.innerHTML = "";
   el.append(
-    h("div", { class: "inspect-kicker" }, view.kicker || "Detail"),
-    h("h2", { class: "inspect-title" }, view.title || "Hover a row"),
-    ...(view.body || [h("p", { class: "inspect-empty" }, "Hover a student, alert, or graph node. Click to open the full page.")]),
+    h("div", { class: "glass-head" }, [
+      h("span", { class: "glass-dot " + (current ? (blocked ? "blocked" : "ready") : "") }),
+      h("div", { class: "glass-who" }, [
+        picker,
+        h("div", { class: "meta" }, current
+          ? `Roll ${current.roll}` + (current.complete ? ` · ${current.percent}%` : " · brief blocked")
+          : "Load the class, then pick a student here"),
+      ]),
+    ]),
+    h("div", { class: "glass-peek" }, [
+      h("p", { class: "inspect-empty" }, current
+        ? (current.complete
+          ? ((current.weak || []).length ? `Weak on ${(current.weak || []).join(", ")}.` : "No weak chapter on this paper.")
+          : `Brief blocked — ${(current.missing || []).map((x) => String(x).toUpperCase()).join(", ") || "empty cells"}.`)
+        : "Load the class to pick a student from this box."),
+    ]),
+    h("div", { class: "glass-hops" }, hops.map(([id, label]) => h("button", {
+      class: "glass-hop" + (state.nav === id ? " active" : ""),
+      onclick: (e) => {
+        e.stopPropagation();
+        state.nav = id;
+        const roll = state.selectedRoll || (current && current.roll);
+        if ((id === "student" || id === "graph" || id === "map") && roll) selectStudent(roll);
+        else render();
+      },
+    }, label))),
   );
+  if (state.glassFx && state.glassFx.refresh) {
+    requestAnimationFrame(() => state.glassFx.refresh());
+  }
+}
+
+function glassRoster() {
+  const fromClass = ((state.classData || {}).roster || []).map((r) => ({
+    roll: r.roll,
+    name: r.name,
+    complete: r.complete,
+    percent: r.percent,
+    weak: r.weak,
+    missing: r.missing,
+  }));
+  if (fromClass.length) return fromClass;
+  return (state.me && state.me.roster_lite) || [];
+}
+
+function rosterPeek(row) {
+  if (!row) return null;
+  const onStudentPage = state.nav === "student" && state.selectedRoll === row.roll;
+  return {
+    kicker: row.complete ? "Ready" : "Blocked",
+    title: row.name,
+    body: [
+      h("p", { class: "sub" }, `Roll ${row.roll}` + (row.complete ? ` · ${row.percent}%` : "")),
+      h("p", {}, row.complete
+        ? ((row.weak || []).length ? `Weak on ${(row.weak || []).join(", ")}.` : "No weak chapter on this paper.")
+        : `Brief blocked — ${(row.missing || []).map((x) => x.toUpperCase()).join(", ") || "empty cells"} still empty.`),
+      !onStudentPage && h("div", { class: "row-actions" }, [
+        h("button", { class: "primary", onclick: () => { state.selectedRoll = row.roll; state.nav = "student"; selectStudent(row.roll); } }, "Open student"),
+      ]),
+    ].filter(Boolean),
+  };
+}
+
+function inspectGraphNode(pick) {
+  if (!pick) return null;
+  if (pick.kind === "student") {
+    const roll = String(pick.id || "").split(":")[1];
+    const row = ((state.classData || {}).roster || []).find((r) => r.roll === roll);
+    if (row) return rosterPeek(row);
+    return {
+      kicker: "Student",
+      title: String(pick.label || "").replace(/[\[\]]/g, ""),
+      body: [h("p", { class: "sub" }, roll ? `Roll ${roll}` : "Hub of this local graph.")],
+    };
+  }
+  const kindLabel = pick.kind === "question" ? "Question" : pick.kind === "chapter" ? "Chapter" : pick.kind === "paper" ? "Paper" : "Node";
+  return {
+    kicker: kindLabel,
+    title: String(pick.label || "").replace(/[\[\]]/g, ""),
+    body: graphInspectorKidsFor(pick),
+  };
 }
 
 function inspectorPayload() {
-  if (state.graphPick) {
-    return {
-      kicker: state.graphPick.kind || "Graph",
-      title: String(state.graphPick.label || "Node").replace(/[\[\]]/g, ""),
-      body: graphInspectorKids(),
-    };
-  }
-  const roll = state.selectedRoll;
-  const row = ((state.classData || {}).roster || []).find((r) => r.roll === roll);
-  if (row) {
-    return {
-      kicker: row.complete ? "Ready" : "Blocked",
-      title: row.name,
-      body: [
-        h("p", { class: "sub" }, `Roll ${row.roll} · ${row.complete ? row.percent + "%" : "brief blocked"}`),
-        h("p", {}, row.complete
-          ? `Weak: ${(row.weak || []).join(", ") || "none"}.`
-          : `Empty cells: ${(row.missing || []).map((x) => x.toUpperCase()).join(", ")}.`),
-        h("div", { class: "row-actions" }, [
-          h("button", { class: "primary", onclick: () => { state.nav = "student"; selectStudent(row.roll); } }, "Open student"),
-        ]),
-      ],
-    };
-  }
+  if (state.graphPick) return inspectGraphNode(state.graphPick);
+  const row = ((state.classData || {}).roster || []).find((r) => r.roll === state.selectedRoll);
+  if (row && (state.nav === "class" || state.nav === "student")) return rosterPeek(row);
   const k = (state.me && state.me.kpis) || {};
   return {
     kicker: "Desk",
@@ -401,8 +509,8 @@ function inspectorPayload() {
     body: [
       h("p", { class: "inspect-empty" },
         k.incomplete
-          ? `${k.incomplete} scripts still block briefs. Hover a roster row or run the desk.`
-          : "Hover a student or a graph node. The main page stays still."),
+          ? `${k.incomplete} scripts still block briefs. Hover a roster row, or a question on the graph.`
+          : "Hover a roster row or a question. The student node in the middle is just the hub."),
     ],
   };
 }
@@ -636,20 +744,72 @@ function studentPane(teacher) {
   ]);
 }
 
+function questionDifficulty(q) {
+  const max = Number(q.max_marks || q.hardest || 0);
+  if (max <= 4) return "easy";
+  if (max <= 8) return "medium";
+  return "hard";
+}
+
+function nodeDifficulty(n) {
+  if (n.kind === "question") return questionDifficulty(n);
+  if (n.kind === "chapter") return questionDifficulty({ max_marks: n.hardest || 0 });
+  return "medium";
+}
+
+function difficultyColor(level) {
+  if (level === "hard") return "#ef4444";
+  if (level === "medium") return "#eab308";
+  return "#22c55e";
+}
+
+function tipText(n) {
+  const name = String(n.label || "").replace(/[\[\]]/g, "");
+  if (n.kind === "question") {
+    const max = n.max_marks == null ? "?" : fmt(n.max_marks);
+    return (n.empty || n.got == null) ? `${name}  —/${max}` : `${name}  ${fmt(n.got)}/${max}`;
+  }
+  if (n.kind === "chapter") {
+    const max = n.max == null ? "?" : fmt(n.max);
+    const got = n.got == null ? "—" : fmt(n.got);
+    return `${name}  ${got}/${max}`;
+  }
+  if (n.kind === "student") {
+    const max = n.max == null ? "?" : fmt(n.max);
+    const got = n.got == null ? "—" : fmt(n.got);
+    return `${name}  ${got}/${max}`;
+  }
+  return name;
+}
+
 function graphPane() {
   if (!state.student?.brain) return emptyLoad();
-  const canvas = h("canvas", { class: "brain-canvas", width: "900", height: "460" });
-  const inspector = h("div", { class: "inspector", id: "graph-inspector" }, graphInspectorKids());
+  const host = h("div", { class: "mindmap", id: "mindmap-host" });
+  const name = state.student.analysis?.name || "Student";
+  const paper = state.student.paper?.title || "Midterm";
   const card = h("div", { class: "card brain-card" }, [
-    h("h3", {}, `${state.student.paper?.title || "Midterm"} · local graph`),
-    h("p", { class: "sub", style: "color:#a8a29e" }, "Force-directed. Click Q9 to address the leak or award bonus. Weak edges stay red until you act."),
-    canvas,
-    inspector,
+    h("div", { class: "mindmap-head" }, [
+      h("div", {}, [
+        h("h3", {}, `${name} · ${paper}`),
+        h("p", { class: "sub" }, "Easy green · medium yellow · hard red. Hover a question or chapter for marks obtained."),
+      ]),
+      sectionTabs(state.me.papers || []),
+    ]),
+    host,
+    h("div", { class: "mindmap-legend" }, [
+      h("span", { class: "diff easy" }, "Easy ≤4"),
+      h("span", { class: "diff medium" }, "Medium 6–8"),
+      h("span", { class: "diff hard" }, "Hard 12+"),
+    ]),
     h("div", { class: "backlinks" }, Object.entries(state.student.brain.backlinks || {}).map(([ch, qs]) =>
       h("div", {}, [h("span", { class: "wiki" }, `[[${ch}]]`), ` ← ${(qs || []).join(", ")}`])
     )),
   ]);
-  queueMicrotask(() => mountBrain(canvas, state.student.brain));
+  try {
+    mountMindmap(host, state.student.brain, true);
+  } catch (err) {
+    host.textContent = "Graph failed: " + (err && err.message ? err.message : err);
+  }
   return card;
 }
 
@@ -669,11 +829,9 @@ function policyCard() {
 }
 
 function graphInspectorKidsFor(pick) {
-  if (!pick) return [h("p", { class: "inspect-empty" }, "Hover Q9. Weak edges stay red. Click to address or add bonus — bonus cannot fill an empty cell.")];
+  if (!pick) return [h("p", { class: "inspect-empty" }, "Hover a question. Weak edges stay red. Click to address or add bonus — bonus cannot fill an empty cell.")];
   const kids = [
-    h("div", { class: "section-kicker" }, pick.kind),
-    h("div", { style: "font-size:18px;margin:6px 0" }, String(pick.label || "").replace(/[\[\]]/g, "")),
-    pick.chapter && h("div", {}, `Chapter [[${pick.chapter}]] · ${pick.band || ""}`),
+    pick.chapter && h("p", { class: "sub" }, `Chapter [[${pick.chapter}]]` + (pick.band ? ` · ${pick.band}` : "")),
     pick.confidence != null && h("div", { class: "sub" },
       pick.needs_review
         ? `Probably ${pick.chapter} (${Math.round(pick.confidence * 100)}%). Needs teacher confirmation before student analysis uses it as fact.`
@@ -1108,20 +1266,7 @@ function rosterCard(cls) {
       h("thead", {}, h("tr", {}, ["Roll", "Name", "%", "Weak", "Status"].map((t) => h("th", {}, t)))),
       h("tbody", {}, cls.roster.map((r) => h("tr", {
         class: "clickable" + (state.selectedRoll === r.roll ? " selected" : ""),
-        onmouseenter: () => fillInspector({
-          kicker: r.complete ? "Ready" : "Blocked",
-          title: r.name,
-          body: [
-            h("p", { class: "sub" }, `Roll ${r.roll} · ${r.complete ? r.percent + "%" : "brief blocked"}`),
-            h("p", {}, r.complete
-              ? `Weak: ${(r.weak || []).join(", ") || "none"}.`
-              : `Empty: ${(r.missing || []).map((x) => x.toUpperCase()).join(", ")}.`),
-            h("div", { class: "row-actions" }, [
-              h("button", { class: "primary", onclick: () => { state.selectedRoll = r.roll; state.nav = "student"; selectStudent(r.roll); } }, "Open student"),
-            ]),
-          ],
-        }),
-        onclick: () => { state.selectedRoll = r.roll; state.nav = "student"; selectStudent(r.roll); },
+        onclick: () => pickStudent(r.roll),
       }, [
         h("td", {}, r.roll),
         h("td", {}, r.name),
@@ -1216,142 +1361,236 @@ function lossesCard(losses) {
 
 function brainCardStatic(graph, title) {
   if (!graph?.nodes?.length) return null;
-  const canvas = h("canvas", { class: "brain-canvas", width: "720", height: "380" });
+  const host = h("div", { class: "mindmap mindmap-mini" });
   const card = h("div", { class: "card brain-card" }, [
     h("h3", {}, title || "Local graph"),
-    canvas,
+    host,
   ]);
-  queueMicrotask(() => mountBrain(canvas, graph, false));
+  mountMindmap(host, graph, false);
   return card;
 }
 
-let brainRaf = 0;
-function mountBrain(canvas, graph, interactive = true) {
-  const ctx = canvas.getContext("2d");
-  if (!ctx) return;
-  cancelAnimationFrame(brainRaf);
-  const w = canvas.width;
-  const h = canvas.height;
-  const chapters = (graph.nodes || []).filter((n) => n.kind === "chapter");
-  const questions = (graph.nodes || []).filter((n) => n.kind === "question");
-  const nodes = (graph.nodes || []).map((n) => {
-    let x = w / 2; let y = h / 2;
-    if (n.kind === "paper") y = 50;
-    if (n.kind === "chapter") {
-      const i = chapters.findIndex((c) => c.id === n.id);
-      const ang = (i / Math.max(chapters.length, 1)) * Math.PI * 2 - Math.PI / 2;
-      x = w / 2 + Math.cos(ang) * 160;
-      y = h / 2 + Math.sin(ang) * 120;
-    }
-    if (n.kind === "question") {
-      const i = questions.findIndex((c) => c.id === n.id);
-      const ang = (i / Math.max(questions.length, 1)) * Math.PI * 2 - Math.PI / 2;
-      x = w / 2 + Math.cos(ang) * 280;
-      y = h / 2 + Math.sin(ang) * 175;
-    }
-    return { ...n, x, y, vx: 0, vy: 0, r: n.kind === "student" ? 13 : n.kind === "chapter" ? 9 : 6 };
+function svgEl(tag, attrs, kids) {
+  const el = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    el.setAttribute(k, String(v));
+  }
+  for (const kid of [].concat(kids || [])) {
+    if (kid == null || kid === false) continue;
+    el.append(typeof kid === "string" ? document.createTextNode(kid) : kid);
+  }
+  return el;
+}
+
+function mindmapLayout(graph, w, h) {
+  const nodes = (graph.nodes || []).map((n) => ({ ...n }));
+  const chapters = nodes.filter((n) => n.kind === "chapter");
+  const questions = nodes.filter((n) => n.kind === "question");
+  const student = nodes.find((n) => n.kind === "student");
+  const paper = nodes.find((n) => n.kind === "paper");
+  const cx = w / 2;
+  const cy = h / 2 + 12;
+  if (student) {
+    student.x = cx;
+    student.y = cy;
+    student.r = 22;
+  }
+  if (paper) {
+    paper.x = cx;
+    paper.y = Math.max(36, cy - Math.min(h * 0.18, 90));
+    paper.r = 10;
+  }
+  const nCh = Math.max(chapters.length, 1);
+  const r1 = Math.min(w, h) * 0.26;
+  const r2 = Math.min(w, h) * 0.40;
+  chapters.forEach((c, i) => {
+    const a = (i / nCh) * Math.PI * 2 - Math.PI / 2;
+    c.x = cx + Math.cos(a) * r1;
+    c.y = cy + Math.sin(a) * r1;
+    c.r = 14;
+    c.angle = a;
   });
-  const edges = graph.edges || [];
-  function step() {
-    for (let i = 0; i < nodes.length; i++) {
-      for (let j = i + 1; j < nodes.length; j++) {
-        const a = nodes[i]; const b = nodes[j];
-        let dx = a.x - b.x; let dy = a.y - b.y;
-        let d = Math.hypot(dx, dy) || 0.1;
-        const force = 220 / (d * d);
-        dx /= d; dy /= d;
-        a.vx += dx * force; a.vy += dy * force;
-        b.vx -= dx * force; b.vy -= dy * force;
-      }
-    }
-    for (const e of edges) {
-      const a = nodes.find((n) => n.id === e.source);
-      const b = nodes.find((n) => n.id === e.target);
-      if (!a || !b) continue;
-      const dx = b.x - a.x; const dy = b.y - a.y;
-      a.vx += dx * 0.01; a.vy += dy * 0.01;
-      b.vx -= dx * 0.01; b.vy -= dy * 0.01;
-    }
-    for (const n of nodes) {
-      if (n.kind === "student") { n.x = w / 2; n.y = h / 2; n.vx = 0; n.vy = 0; continue; }
-      n.vx *= 0.82; n.vy *= 0.82;
-      n.x = Math.max(24, Math.min(w - 24, n.x + n.vx));
-      n.y = Math.max(24, Math.min(h - 24, n.y + n.vy));
-    }
-    draw();
-    brainRaf = requestAnimationFrame(step);
+  const byChapter = {};
+  for (const q of questions) {
+    const key = q.chapter || "Untagged";
+    (byChapter[key] || (byChapter[key] = [])).push(q);
   }
-  function draw() {
-    ctx.fillStyle = "#0d0f14";
-    ctx.fillRect(0, 0, w, h);
-    const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
-    const focus = state.graphHover || state.graphPick;
-    const linked = new Set();
-    if (focus) {
-      linked.add(focus.id);
-      for (const e of edges) {
-        if (e.source === focus.id) linked.add(e.target);
-        if (e.target === focus.id) linked.add(e.source);
-      }
+  chapters.forEach((ch) => {
+    const qs = byChapter[ch.wikilink] || byChapter[String(ch.label || "").replace(/[\[\]]/g, "")] || [];
+    qs.forEach((q, j) => {
+      const spread = (j - (qs.length - 1) / 2) * Math.min(0.38, 1.1 / Math.max(qs.length, 1));
+      const a = ch.angle + spread;
+      q.x = cx + Math.cos(a) * r2;
+      q.y = cy + Math.sin(a) * r2;
+      q.r = q.empty ? 10 : 9;
+    });
+  });
+  questions.forEach((q) => {
+    if (q.x == null) {
+      q.x = cx;
+      q.y = cy + r2;
+      q.r = 9;
     }
-    for (const e of edges) {
-      const a = byId[e.source]; const b = byId[e.target];
-      if (!a || !b) continue;
-      const on = !focus || (linked.has(e.source) && linked.has(e.target));
-      const alpha = on ? 1 : 0.12;
-      ctx.strokeStyle = e.kind === "weak" ? `rgba(248,113,113,${0.6 * alpha})` : e.kind === "strong" ? `rgba(74,222,128,${0.55 * alpha})` : `rgba(100,116,139,${0.35 * alpha})`;
-      ctx.lineWidth = e.kind === "weak" || e.kind === "strong" ? 2 : 1;
-      ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
-    }
-    for (const n of nodes) {
-      const picked = (state.graphPick && state.graphPick.id === n.id) || (state.graphHover && state.graphHover.id === n.id);
-      const dim = focus && !linked.has(n.id);
-      ctx.globalAlpha = dim ? 0.22 : 1;
-      ctx.beginPath();
-      ctx.arc(n.x, n.y, n.r + (picked ? 3 : 0), 0, Math.PI * 2);
-      ctx.fillStyle = n.kind === "student" ? "#f59e0b" : n.kind === "paper" ? "#e7e5e4" : n.addressed ? "#38bdf8" : n.band === "weak" ? "#ef4444" : n.band === "strong" ? "#22c55e" : "#60a5fa";
-      ctx.fill();
-      ctx.fillStyle = "#e7e5e4";
-      ctx.font = "12px IBM Plex Sans, sans-serif";
-      ctx.fillText(String(n.label || "").replace(/[\[\]]/g, ""), n.x + 12, n.y + 4);
-      ctx.globalAlpha = 1;
-    }
+  });
+  return nodes;
+}
+
+function mindmapCurve(a, b) {
+  const mx = (a.x + b.x) / 2;
+  const my = (a.y + b.y) / 2;
+  const dx = b.x - a.x;
+  const dy = b.y - a.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const bulge = Math.min(28, len * 0.18);
+  const ox = (-dy / len) * bulge;
+  const oy = (dx / len) * bulge;
+  return `M ${a.x.toFixed(1)} ${a.y.toFixed(1)} Q ${(mx + ox).toFixed(1)} ${(my + oy).toFixed(1)} ${b.x.toFixed(1)} ${b.y.toFixed(1)}`;
+}
+
+function nodeFill(n) {
+  if (n.kind === "student") return "#f59e0b";
+  if (n.kind === "paper") return "#e7e5e4";
+  if (n.empty) return "#0d0f14";
+  return difficultyColor(nodeDifficulty(n));
+}
+
+function mountMindmap(host, graph, interactive = true) {
+  if (!host) return;
+  host.replaceChildren();
+  if (!graph || !(graph.nodes || []).length) {
+    host.append(h("p", { class: "sub", style: "padding:24px;color:#a8a29e" }, "No graph for this paper yet. Load the class, then pick a student."));
+    return;
   }
-  if (interactive) {
-    const hitAt = (ev) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = (ev.clientX - rect.left) * (canvas.width / rect.width);
-      const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
-      return nodes.find((n) => Math.hypot(n.x - x, n.y - y) < n.r + 10);
-    };
-    canvas.onmousemove = (ev) => {
-      const hit = hitAt(ev);
-      canvas.style.cursor = hit ? "pointer" : "default";
-      if ((hit && hit.id) === (state.graphHover && state.graphHover.id)) return;
-      state.graphHover = hit || null;
-      if (hit) {
-        fillInspector({
-          kicker: hit.kind,
-          title: String(hit.label || "").replace(/[\[\]]/g, ""),
-          body: graphInspectorKidsFor(hit),
-        });
-      }
-    };
-    canvas.onmouseleave = () => { state.graphHover = null; };
-    canvas.onclick = (ev) => {
-      const hit = hitAt(ev);
-      if (!hit) return;
-      state.graphPick = hit;
-      fillInspector({
-        kicker: hit.kind,
-        title: String(hit.label || "").replace(/[\[\]]/g, ""),
-        body: graphInspectorKidsFor(hit),
+  const w = interactive ? 900 : 640;
+  const h = interactive ? 480 : 260;
+  const nodes = mindmapLayout(graph, w, h);
+  const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
+  const treeKinds = new Set(["sat", "contains", "asks", "weak", "strong"]);
+  const edges = (graph.edges || []).filter((e) => treeKinds.has(e.kind) && byId[e.source] && byId[e.target]);
+  const svg = svgEl("svg", {
+    class: "mindmap-svg",
+    viewBox: `0 0 ${w} ${h}`,
+    width: String(w),
+    height: String(h),
+    preserveAspectRatio: "xMidYMid meet",
+    xmlns: "http://www.w3.org/2000/svg",
+    role: "img",
+    "aria-label": "Local mind map",
+  });
+  const edgeLayer = svgEl("g", { class: "mm-edges" });
+  const nodeLayer = svgEl("g", { class: "mm-nodes" });
+  const edgeEls = [];
+  for (const e of edges) {
+    const a = byId[e.source];
+    const b = byId[e.target];
+    const path = svgEl("path", {
+      class: `mm-edge mm-${e.kind}`,
+      d: mindmapCurve(a, b),
+      "data-a": e.source,
+      "data-b": e.target,
+      stroke: (e.kind === "asks" || e.kind === "contains") ? difficultyColor(nodeDifficulty(b.kind === "question" || b.kind === "chapter" ? b : a)) : null,
+    });
+    edgeLayer.append(path);
+    edgeEls.push({ el: path, a: e.source, b: e.target });
+  }
+  const nodeEls = [];
+  for (const n of nodes) {
+    const label = String(n.label || "").replace(/[\[\]]/g, "");
+    const g = svgEl("g", {
+      class: `mm-node mm-${n.kind}` + (n.empty ? " mm-empty" : "") + " mm-" + nodeDifficulty(n),
+      transform: `translate(${n.x.toFixed(1)} ${n.y.toFixed(1)})`,
+      "data-id": n.id,
+    });
+    const fill = nodeFill(n);
+    g.append(
+      svgEl("circle", {
+        r: n.r,
+        fill,
+        class: "mm-dot",
+        stroke: n.empty ? "#eab308" : "rgba(255,255,255,0.22)",
+        "stroke-width": n.empty ? 2 : 1,
+        "stroke-dasharray": n.empty ? "3 3" : null,
+      }),
+      svgEl("text", {
+        class: "mm-label",
+        x: 0,
+        y: n.r + 16,
+        "text-anchor": "middle",
+      }, label),
+    );
+    if (interactive) {
+      g.style.cursor = "pointer";
+      g.addEventListener("mouseenter", (ev) => {
+        focusMindmap(n, nodes, edgeEls, nodeEls);
+        showMindTip(host, n, ev);
       });
-      const host = document.querySelector("#graph-inspector");
-      if (host) { host.innerHTML = ""; graphInspectorKids().forEach((k) => host.append(k)); }
-    };
+      g.addEventListener("mousemove", (ev) => showMindTip(host, n, ev));
+      g.addEventListener("click", (ev) => {
+        ev.stopPropagation();
+        state.graphPick = n;
+        fillInspector(inspectGraphNode(n));
+      });
+    }
+    nodeLayer.append(g);
+    nodeEls.push({ el: g, id: n.id });
   }
-  step();
+  svg.append(edgeLayer, nodeLayer);
+  const tip = h("div", { class: "mm-tip", hidden: true });
+  if (interactive) {
+    svg.addEventListener("mouseleave", () => {
+      clearMindmapFocus(edgeEls, nodeEls);
+      hideMindTip(host);
+    });
+  }
+  host.append(svg, tip);
+  window._mmFocus = (n) => focusMindmap(n, nodes, edgeEls, nodeEls);
+}
+
+function showMindTip(host, n, ev) {
+  const tip = host.querySelector(".mm-tip");
+  if (!tip) return;
+  tip.hidden = false;
+  tip.textContent = tipText(n);
+  const box = host.getBoundingClientRect();
+  const x = ev.clientX - box.left;
+  const y = ev.clientY - box.top;
+  tip.style.left = `${x}px`;
+  tip.style.top = `${Math.max(18, y - 8)}px`;
+}
+
+function hideMindTip(host) {
+  const tip = host.querySelector(".mm-tip");
+  if (tip) tip.hidden = true;
+}
+
+function focusMindmap(n, nodes, edgeEls, nodeEls) {
+  if (state.graphHover && state.graphHover.id === n.id) return;
+  state.graphHover = n;
+  const linked = new Set([n.id]);
+  for (const e of edgeEls) {
+    if (e.a === n.id) linked.add(e.b);
+    if (e.b === n.id) linked.add(e.a);
+  }
+  for (const e of edgeEls) {
+    const on = linked.has(e.a) && linked.has(e.b);
+    e.el.classList.toggle("is-dim", !on);
+    e.el.classList.toggle("is-on", on);
+  }
+  for (const item of nodeEls) {
+    item.el.classList.toggle("is-dim", !linked.has(item.id));
+    item.el.classList.toggle("is-on", linked.has(item.id));
+  }
+}
+
+function clearMindmapFocus(edgeEls, nodeEls) {
+  state.graphHover = null;
+  for (const e of edgeEls) {
+    e.el.classList.remove("is-dim", "is-on");
+  }
+  for (const item of nodeEls) {
+    item.el.classList.remove("is-dim", "is-on");
+  }
 }
 
 function btn(label, fn, cls) {

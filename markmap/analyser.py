@@ -544,6 +544,9 @@ def brain_graph(
 
     leaked = {h["question_id"] for h in (hotspots or []) if h.get("leaked")}
     chapter_band = {c["name"]: c["band"] for c in (analysis or {}).get("chapters") or []}
+    chapter_got: dict[str, float] = {}
+    chapter_max: dict[str, float] = {}
+    chapter_hardest: dict[str, float] = {}
     chapters_seen: set[str] = set()
     addressed = set((row or {}).get("addressed") or [])
     bonus_map = (row or {}).get("bonus") or {}
@@ -555,6 +558,8 @@ def brain_graph(
                 "label": analysis.get("name") or row.get("name") or row["roll"],
                 "kind": "student",
                 "band": "ok" if analysis.get("complete") else "weak",
+                "got": analysis.get("got"),
+                "max": analysis.get("max"),
             }
         )
         edges.append(
@@ -598,10 +603,18 @@ def brain_graph(
                     }
                 )
         band = "weak" if question["id"] in leaked else chapter_band.get(chapter, "ok")
+        empty = False
+        cell = None
+        max_marks = float(question.get("max_marks") or 0)
+        chapter_max[chapter] = chapter_max.get(chapter, 0) + max_marks
+        chapter_hardest[chapter] = max(chapter_hardest.get(chapter, 0), max_marks)
         if row:
             cell = row.get("cells", {}).get(question["id"])
-            if cell is not None and question["max_marks"]:
-                ratio = cell / question["max_marks"]
+            empty = cell is None
+            if cell is not None:
+                chapter_got[chapter] = chapter_got.get(chapter, 0) + float(cell)
+            if cell is not None and max_marks:
+                ratio = cell / max_marks
                 band = _band(ratio)
         hot = next((h for h in (hotspots or []) if h.get("question_id") == question["id"]), None)
         nodes.append(
@@ -610,12 +623,15 @@ def brain_graph(
                 "label": f"Q{question['number']}",
                 "kind": "question",
                 "band": band,
+                "empty": empty,
                 "leaked": question["id"] in leaked,
                 "addressed": question["id"] in addressed,
                 "bonus": bonus_map.get(question["id"]) or 0,
                 "question_id": question["id"],
                 "number": question["number"],
                 "chapter": chapter,
+                "max_marks": question.get("max_marks"),
+                "got": None if empty else cell,
                 "confidence": question.get("confidence"),
                 "needs_review": bool(question.get("needs_review")),
                 "source": question.get("source"),
@@ -635,6 +651,14 @@ def brain_graph(
                     "kind": "scored",
                 }
             )
+
+    for node in nodes:
+        if node.get("kind") != "chapter":
+            continue
+        name = node.get("wikilink") or ""
+        node["got"] = chapter_got.get(name)
+        node["max"] = chapter_max.get(name)
+        node["hardest"] = chapter_hardest.get(name)
 
     return {"nodes": nodes, "edges": edges, "backlinks": backlinks}
 

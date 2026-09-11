@@ -1,0 +1,38 @@
+Greenfield Public School
+Class 10-B  Mathematics  Midterm 2
+Date: 4 Sep 2026    Max marks: 80    Time: 3 hours
+
+Answer all questions. Show working.
+
+Q1 (4 marks) [Polynomials]
+Find the zeroes of the polynomial p(x) = x^2 − 3x + 2. Verify the relationship between zeroes and coefficients.
+
+Q2 (4 marks) [Polynomials]
+Divide the polynomial x^3 − 3x^2 + 3x − 1 by x − 1 and write the quotient and remainder.
+
+Q3 (6 marks) [Linear Equations]
+Solve the pair of linear equations: 2x + y = 7 and 3x − y = 8. Write the solution.
+
+Q4 (6 marks) [Linear Equations]
+The sum of two numbers is 16 and their difference is 4. Form a pair of linear equations and solve for the numbers.
+
+Q5 (6 marks) [Triangles]
+In triangle ABC, DE is parallel to BC with D on AB and E on AC. If AD = 2.4 cm, DB = 3.6 cm and AE = 1.8 cm, find AC.
+
+Q6 (6 marks) [Triangles]
+A vertical pole 6 m tall casts a shadow 4 m long. At the same time a tower casts a shadow 28 m long. Find the height of the tower using similar triangles.
+
+Q7 (8 marks) [Trigonometry]
+If sin A = 3/5, find cos A and tan A, taking A acute.
+
+Q8 (8 marks) [Trigonometry]
+A kite is flying at a height of 60 m. The string makes an angle of 30° with the ground. Assuming the string is taut, find the length of the string.
+
+Q9 (12 marks) [Linear Equations]
+A part of monthly hostel charges is fixed and the remaining depends on the number of days one takes food in the mess. When a student A takes food for 20 days she has to pay ₹1000 as hostel charges whereas a student B, who takes food for 26 days, pays ₹1180 as hostel charges. Find the fixed charges and the cost of food per day. Then find how much C will pay for 22 days.
+
+Q10 (20 marks)
+The following table gives the marks of 30 students. Find the mean and the median of the data.
+
+Marks: 0-10, 10-20, 20-30, 30-40, 40-50
+Frequency: 2, 4, 8, 10, 6
