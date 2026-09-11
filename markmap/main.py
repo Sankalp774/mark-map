@@ -44,6 +44,15 @@ class ChapterBody(BaseModel):
 
 class DeskBody(BaseModel):
     prompt: str | None = None
+    class_id: str | None = None
+
+
+class CellBody(BaseModel):
+    value: float
+
+
+class PtmBody(BaseModel):
+    ptm_at: str
 
 
 class ApproveBody(BaseModel):
@@ -150,8 +159,16 @@ def agent_policy() -> dict[str, Any]:
     return policy.public()
 
 
+def _cookie_secure(request: Request) -> bool:
+    import os
+
+    if os.getenv("MARKMAP_SECURE_COOKIE") == "1":
+        return True
+    return request.url.scheme == "https"
+
+
 @app.post("/api/login")
-def login(body: LoginBody) -> JSONResponse:
+def login(body: LoginBody, request: Request) -> JSONResponse:
     try:
         payload = auth.login(body.email, body.password)
     except PermissionError as exc:
@@ -162,6 +179,7 @@ def login(body: LoginBody) -> JSONResponse:
         payload["token"],
         httponly=True,
         samesite="lax",
+        secure=_cookie_secure(request),
         max_age=60 * 60 * 24 * 7,
     )
     return response
@@ -209,6 +227,8 @@ def me(request: Request) -> dict[str, Any]:
         "workspace": workspace.snapshot(user, class_id),
         "kpis": kpis,
         "roster_lite": kpis.get("roster_lite") or [],
+        "ptm_at": state.get("ptm_at"),
+        "last_desk_run": state.get("last_desk_run"),
     }
 
 
@@ -233,7 +253,9 @@ def demo_blank(request: Request) -> dict[str, Any]:
 
 @app.post("/api/demo/reset")
 def demo_reset(request: Request) -> dict[str, Any]:
-    _teacher(request)
+    token = request.cookies.get(config.COOKIE_NAME)
+    if token:
+        _teacher(request)
     seed.reset_store()
     return {"ok": True}
 
@@ -243,6 +265,9 @@ async def ingest(
     request: Request,
     title: str = Form("Uploaded paper"),
     paper_text: str = Form(""),
+    date: str = Form(""),
+    class_id: str = Form("10-B"),
+    section: str = Form(""),
     paper: UploadFile | None = File(None),
     marks: UploadFile | None = File(None),
 ) -> dict[str, Any]:
@@ -260,20 +285,24 @@ async def ingest(
     csv_text = (await marks.read()).decode("utf-8", errors="replace")
     if not text.strip():
         raise HTTPException(400, "Paper text is empty.")
+    section = (section or "").strip() or (
+        "term-1" if "term 1" in title.lower() or "term-1" in title.lower() else "midterm"
+    )
+    date = (date or "").strip() or "2026-09-04"
+    class_id = (class_id or config.DEFAULT_CLASS_ID).strip()
     try:
-        section = "term-1" if "term 1" in title.lower() or "term-1" in title.lower() else "midterm"
         result = seed.ingest_paper(
             paper_id=title.lower().replace(" ", "-")[:40],
             title=title,
-            date="2026-09-04",
+            date=date,
             paper_text=text,
             csv_text=csv_text,
             section=section,
             source="upload",
+            class_id=class_id,
         )
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
-    desk.run_desk()
     return result
 
 
@@ -294,6 +323,20 @@ def patch_chapter(paper_id: str, question_id: str, body: ChapterBody, request: R
     except KeyError as exc:
         raise HTTPException(404, str(exc)) from exc
     return analyser.class_bundle(paper_id)
+
+
+@app.patch("/api/papers/{paper_id}/students/{roll}/cells/{question_id}")
+def patch_cell(paper_id: str, roll: str, question_id: str, body: CellBody, request: Request) -> dict[str, Any]:
+    user = _teacher(request)
+    try:
+        analyser.set_cell(paper_id, roll, question_id, body.value, teacher=user["name"])
+    except KeyError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    bundle = analyser.student_bundle(paper_id, roll)
+    payload = briefs.write_briefs(bundle["analysis"], bundle["year"])
+    return {**bundle, "briefs": payload, "class": analyser.class_bundle(paper_id)}
 
 
 @app.get("/api/papers/{paper_id}/students/{roll}")
@@ -401,9 +444,40 @@ def demo_screenshot(request: Request) -> dict[str, Any]:
 async def desk_run(request: Request, body: DeskBody | None = None) -> dict[str, Any]:
     user = _teacher(request)
     prompt = body.prompt if body else None
-    class_id = _class_id(request, user)
+    class_id = (body.class_id if body else None) or _class_id(request, user)
     result = await asyncio.to_thread(agent_runtime.run_desk_agent, prompt, class_id)
     return result
+
+
+@app.post("/api/desk/sweep")
+async def desk_sweep(request: Request, body: DeskBody | None = None) -> dict[str, Any]:
+    secret = request.headers.get("x-markmap-secret") or request.query_params.get("secret")
+    teacher = False
+    try:
+        _teacher(request)
+        teacher = True
+    except HTTPException:
+        teacher = False
+    if not teacher and secret != config.SECRET:
+        raise HTTPException(401, "Desk sweep needs X-Markmap-Secret or a teacher session.")
+    class_id = (body.class_id if body else None) or config.DEFAULT_CLASS_ID
+    prompt = body.prompt if body else None
+    return await asyncio.to_thread(agent_runtime.run_desk_agent, prompt, class_id)
+
+
+@app.post("/api/desk/ptm")
+def set_ptm(body: PtmBody, request: Request) -> dict[str, Any]:
+    _teacher(request)
+    raw = (body.ptm_at or "").strip()
+    if not raw:
+        raise HTTPException(400, "ptm_at is required (ISO datetime).")
+
+    def _mut(state: dict[str, Any]) -> None:
+        state["ptm_at"] = raw
+
+    store.update(_mut)
+    store.audit("set_ptm", {"ptm_at": raw})
+    return {"ok": True, "ptm_at": raw, "ptm_hours": desk.hours_until_ptm()}
 
 
 @app.get("/api/desk/cycle")
@@ -657,6 +731,7 @@ def main() -> None:
 
     import uvicorn
 
+    config.require_production_secret()
     port = int(os.getenv("PORT", "8080"))
     uvicorn.run("markmap.main:app", host="0.0.0.0", port=port, reload=False)
 

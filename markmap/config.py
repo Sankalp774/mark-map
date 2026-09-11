@@ -15,7 +15,8 @@ DATA_DIR = ROOT / "data"
 SAMPLES_DIR = DATA_DIR / "samples"
 STATIC_DIR = ROOT / "static"
 STORE_PATH = Path(os.getenv("MARKMAP_STORE", DATA_DIR / "markmap.json"))
-SECRET = os.getenv("MARKMAP_SECRET", "markmap-demo-secret")
+DEFAULT_SECRET = "markmap-demo-secret"
+SECRET = os.getenv("MARKMAP_SECRET", DEFAULT_SECRET)
 COOKIE_NAME = "markmap_session"
 CLASS_COOKIE = "markmap_class"
 
@@ -92,5 +93,26 @@ def aws_credentials_present() -> bool:
     return cred.exists()
 
 
+def model_backend() -> str:
+    forced = (os.getenv("MARKMAP_DESK_MODEL") or "").strip().lower()
+    if forced in {"scripted", "bedrock"}:
+        return forced
+    if bedrock_disabled() or not aws_credentials_present():
+        return "scripted"
+    return "bedrock"
+
+
+def require_production_secret() -> None:
+    if os.getenv("MARKMAP_ENV") != "production":
+        return
+    if SECRET == DEFAULT_SECRET:
+        raise SystemExit("Set MARKMAP_SECRET before listening in production.")
+
+
 def strands_enabled() -> bool:
-    return (not bedrock_disabled()) and aws_credentials_present()
+    try:
+        import strands  # noqa: F401
+
+        return True
+    except ImportError:
+        return False

@@ -29,6 +29,7 @@ EMPTY: dict[str, Any] = {
     "threads": [],
     "desk_cycles": [],
     "desk_snapshot": {},
+    "last_desk_run": None,
 }
 
 
@@ -54,8 +55,11 @@ def load() -> dict[str, Any]:
 def save(state: dict[str, Any]) -> dict[str, Any]:
     path = _path()
     path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(state, indent=2, ensure_ascii=False)
+    tmp = path.with_name(path.name + ".tmp")
     with _lock:
-        path.write_text(json.dumps(state, indent=2, ensure_ascii=False), encoding="utf-8")
+        tmp.write_text(payload, encoding="utf-8")
+        tmp.replace(path)
     return state
 
 

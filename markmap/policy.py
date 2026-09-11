@@ -1,4 +1,4 @@
-"""Explicit action boundary. Python enforces it; the model only narrates."""
+"""Explicit action boundary. Python enforces it; the agent only calls allowed tools."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ CAN = (
     "recommend_interventions",
     "read_calendar",
     "summarize_trends",
-    "narrate_desk_cycle",
+    "run_desk_cycle",
 )
 
 CANNOT = (

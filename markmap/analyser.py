@@ -210,6 +210,48 @@ def set_question_chapter(paper_id: str, question_id: str, chapter: str) -> dict[
     return resolve_paper(state, paper_id)
 
 
+def set_cell(paper_id: str, roll: str, question_id: str, value: Any, *, teacher: str) -> dict[str, Any]:
+    """Teacher writes one mark. Agents cannot call this."""
+    parsed = _parse_cell(value)
+    if parsed is None:
+        raise ValueError("Mark is empty. We do not invent marks.")
+    applied: dict[str, Any] = {}
+
+    def _mut(state: dict[str, Any]) -> None:
+        paper = resolve_paper(state, paper_id)
+        if not paper:
+            raise KeyError(f"Unknown paper {paper_id}")
+        pid = paper["id"]
+        row = (state["rows"].get(pid) or {}).get(roll)
+        if not row:
+            raise KeyError(f"Unknown roll {roll}")
+        question = next((q for q in paper["questions"] if q["id"] == question_id), None)
+        if not question:
+            raise KeyError(f"Unknown question {question_id}")
+        if parsed < 0 or parsed > float(question["max_marks"]):
+            raise ValueError(f"Mark must be between 0 and {question['max_marks']}.")
+        old = row["cells"].get(question_id)
+        row["cells"][question_id] = parsed
+        missing = [qid for qid, cell in row["cells"].items() if cell is None]
+        row["missing"] = missing
+        row["complete"] = len(missing) == 0
+        applied.update(
+            {
+                "paper_id": pid,
+                "roll": roll,
+                "question_id": question_id,
+                "old": old,
+                "new": parsed,
+                "teacher": teacher,
+                "complete": row["complete"],
+            }
+        )
+
+    store.update(_mut)
+    store.audit("fill_cell", applied)
+    return applied
+
+
 def analyse_row(paper: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
     questions = {q["id"]: q for q in paper["questions"]}
     got = 0.0
@@ -270,6 +312,16 @@ def analyse_row(paper: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
         "complete": bool(row.get("complete")),
         "missing": list(row.get("missing") or []),
         "chapters": chapters,
+        "cells": [
+            {
+                "id": q["id"],
+                "number": q["number"],
+                "got": row["cells"].get(q["id"]),
+                "max": q["max_marks"],
+                "empty": row["cells"].get(q["id"]) is None,
+            }
+            for q in paper["questions"]
+        ],
         "losses": losses,
         "strong": [c["name"] for c in chapters if c["band"] == "strong"],
         "ok": [c["name"] for c in chapters if c["band"] == "ok"],

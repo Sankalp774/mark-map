@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 420" font-family="IBM Plex Sans, system-ui, sans-serif">
+  <rect width="920" height="420" fill="#fbf7f0"/>
+  <text x="32" y="36" font-size="18" font-weight="600" fill="#1c1917">Mark Map</text>
+  <text x="32" y="56" font-size="12" fill="#57534e">Agent calls tools. Python owns marks.</text>
+  <rect x="32" y="80" width="180" height="72" rx="16" fill="#fffdf8" stroke="#e7e0d4"/>
+  <text x="48" y="122" font-size="13" fill="#1c1917">Teacher / student / parent</text>
+  <rect x="260" y="80" width="180" height="72" rx="16" fill="#fffdf8" stroke="#e7e0d4"/>
+  <text x="276" y="122" font-size="13" fill="#1c1917">FastAPI</text>
+  <rect x="488" y="48" width="200" height="136" rx="16" fill="#ecfeff" stroke="#67e8f9"/>
+  <text x="504" y="84" font-size="13" font-weight="600" fill="#1c1917">Strands desk Agent</text>
+  <text x="504" y="108" font-size="12" fill="#57534e">scripted-desk or Bedrock</text>
+  <text x="504" y="128" font-size="12" fill="#57534e">list_incomplete_rows</text>
+  <text x="504" y="146" font-size="12" fill="#57534e">write_student_briefs</text>
+  <text x="504" y="164" font-size="12" fill="#57534e">run_desk_nags</text>
+  <rect x="736" y="48" width="152" height="136" rx="16" fill="#fff7ed" stroke="#fdba74"/>
+  <text x="752" y="100" font-size="13" font-weight="600" fill="#1c1917">Python facts</text>
+  <text x="752" y="122" font-size="12" fill="#57534e">marks · briefs</text>
+  <text x="752" y="140" font-size="12" fill="#57534e">completeness</text>
+  <rect x="488" y="220" width="400" height="72" rx="16" fill="#f5f3ff" stroke="#ddd6fe"/>
+  <text x="504" y="250" font-size="13" fill="#1c1917">BeforeToolCall: write_mark / unlock_brief / set_question_chapter cancelled</text>
+  <text x="504" y="270" font-size="12" fill="#57534e">Teacher PATCH fills the yellow empty cell. Family never gets teacher_brief.</text>
+  <line x1="212" y1="116" x2="260" y2="116" stroke="#1c1917" stroke-width="1.5"/>
+  <line x1="440" y1="116" x2="488" y2="116" stroke="#1c1917" stroke-width="1.5"/>
+  <line x1="688" y1="116" x2="736" y2="116" stroke="#1c1917" stroke-width="1.5"/>
+</svg>

@@ -15,6 +15,8 @@ const state = {
   graphPick: null,
   faqs: [],
   ask: { question: "", answer: null, faq_id: null },
+  health: null,
+  cheat: "",
 };
 
 const TEACHER_NAV = [
@@ -179,6 +181,7 @@ function loginView() {
       h("p", { class: "wordmark" }, "Mark Map · Class operations"),
       h("h1", {}, "The marksheet becomes a live class desk."),
       h("p", { class: "lede" }, "Pick a class. Talk to the room. Parents and students talk back. Briefs still wait for every cell."),
+      healthChip(),
       h("div", { class: "doors" }, doors.map((d) =>
         h("button", { class: "door", onclick: () => { emailInput.value = d.email; passInput.value = "demo"; } }, [
           h("div", { class: "role" }, d.role),
@@ -202,7 +205,24 @@ function loginView() {
       }, [emailInput, passInput, h("button", { class: "primary", type: "submit" }, "Open desk")]),
       state.error && h("div", { class: "error" }, state.error),
       h("p", { class: "hint" }, "Password demo. Also 10-A: ira@markmap.demo and parent.ira@markmap.demo"),
+      h("button", { class: "ghost", style: "margin-top:10px", onclick: resetDemo }, "Reset demo class"),
     ]),
+  ]);
+}
+
+function healthChip() {
+  const hth = state.health;
+  if (!hth) {
+    loadHealth();
+    return h("p", { class: "sub" }, "Checking desk…");
+  }
+  const ocr = hth.ocr === "tesseract" ? "OCR on" : "OCR unavailable";
+  const desk = hth.strands_enabled ? `Strands ${hth.backend || "on"}` : "Strands off";
+  const ev = hth.eval || {};
+  return h("div", { class: "health-row" }, [
+    h("span", { class: "pill green" }, desk),
+    h("span", { class: "pill " + (hth.ocr === "tesseract" ? "green" : "amber") }, ocr),
+    h("span", { class: "pill green" }, `invented marks ${ev.invented_marks ?? 0}`),
   ]);
 }
 
@@ -364,30 +384,32 @@ function deskPane() {
   const alerts = state.me.alerts || [];
   const cycle = (state.me.workspace || {}).desk_cycle;
   const proposals = (state.me.workspace || {}).proposals || [];
-  return h("div", {}, [
+  return h("div", { class: "desk-quiet" }, [
     h("div", { class: "toolbar" }, [
       btn("Load class (Term 1 + Midterm)", loadDemo, "primary"),
       btn("Read sample screenshot", loadScreenshot, "ghost"),
+      btn("Blank Ravi Q9", blankRavi, "ghost"),
       btn("Run desk", runDesk, "ghost"),
     ]),
-    h("div", { class: "stats-row" }, [
-      stat("Scripts ready", k.n ? `${k.ready}/${k.n}` : "—"),
-      stat("Incomplete", k.incomplete ?? "—"),
-      stat("Needs review", k.needs_review ?? "—"),
-      stat("Hotspot", k.hotspot ? `Q${k.hotspot.number} · ${k.hotspot.percent}%` : "—"),
+    h("div", { class: "loop-board compact" }, [
+      tile("Scripts ready", k.n ? `${k.ready}/${k.n}` : "—", "students"),
+      tile("Incomplete", String(k.incomplete ?? "—"), "parents"),
+      tile("Needs review", String(k.needs_review ?? "—"), "all"),
+      tile("Hotspot", k.hotspot ? `Q${k.hotspot.number} · ${k.hotspot.percent}%` : "—", "students"),
     ]),
-    h("div", { class: "alerts" }, alerts.map((a) => h("div", { class: `pill ${a.level}` }, a.text))),
-    cycle && h("div", { class: "card" }, [
+    alerts.length > 0 && h("div", { class: "loop-board compact" }, alerts.map((a) =>
+      h("article", { class: "loop-card trace-" + (a.level === "red" ? "warn" : a.level === "green" ? "ok" : "next") }, [
+        h("div", { class: "loop-kicker" }, a.level === "red" ? "Blocked" : a.level === "green" ? "Ready" : "Watch"),
+        h("h4", {}, a.text),
+      ])
+    )),
+    lastRunCard(),
+    ptmCard(),
+    cheatCard(),
+    cycle && h("div", { class: "card", style: "margin-top:12px" }, [
       h("h3", {}, "Desk cycle"),
-      h("p", { class: "sub" }, "Observe → plan → act → wait. Python owns marks. Agents operate inside the permission boundary."),
-      (cycle.trace || []).length
-        ? h("div", { class: "trace" }, cycle.trace.map((t) => h("div", { class: "trace-item " + t.kind }, t.text)))
-        : h("div", { class: "cycle" }, (cycle.steps || []).map((s) =>
-          h("div", { class: "cycle-step " + s.phase }, [
-            h("div", { class: "cycle-phase" }, s.phase),
-            h("div", {}, s.text),
-          ])
-        )),
+      h("p", { class: "sub" }, "Observe → plan → act → wait. The agent called tools; Python still owns marks."),
+      deskTrace(cycle),
       cycle.observe?.strategy?.recommendation?.leverage && h("p", { class: "sub", style: "margin-top:10px" }, cycle.observe.strategy.recommendation.leverage),
     ]),
     policyCard(),
@@ -414,6 +436,92 @@ function deskPane() {
         h("div", { class: "log" }, (state.me.agent_log || []).slice().reverse().map((e) => `${e.kind}: ${e.text}`).join("\n") || "No runs yet."),
       ]),
     ]),
+  ]);
+}
+
+function deskTrace(cycle) {
+  const last = (state.me || {}).last_desk_run || {};
+  const items = [];
+  (last.did || []).forEach((name) => items.push({ kind: "ok", text: "Called " + name }));
+  (last.refused || []).forEach((r) => items.push({ kind: "warn", text: "Refused " + (r.tool || "tool") + " — " + (r.text || "") }));
+  if (last.waiting) items.push({ kind: "wait", text: last.waiting });
+  if (!items.length && (cycle.trace || []).length) {
+    return h("div", { class: "trace" }, cycle.trace.map((t) => h("div", { class: "trace-item " + t.kind }, t.text)));
+  }
+  if (!items.length) {
+    return h("div", { class: "cycle" }, (cycle.steps || []).map((s) =>
+      h("div", { class: "cycle-step " + s.phase }, [
+        h("div", { class: "cycle-phase" }, s.phase),
+        h("div", {}, s.text),
+      ])
+    ));
+  }
+  return h("div", { class: "trace" }, items.map((t) => h("div", { class: "trace-item " + t.kind }, t.text)));
+}
+
+function lastRunCard() {
+  const last = (state.me || {}).last_desk_run;
+  if (!last) return null;
+  const obs = last.observed || {};
+  return h("div", { class: "card", style: "margin-top:12px" }, [
+    h("h3", {}, "Last desk run"),
+    h("p", { class: "sub" }, last.at || ""),
+    h("p", {}, `Observed ${obs.ready || 0}/${obs.n || 0} ready. Incomplete: ${(obs.incomplete || []).length}.`),
+    h("p", {}, "Did: " + ((last.did || []).join(", ") || "—")),
+    h("p", {}, "Refused: " + ((last.refused || []).map((r) => r.tool).join(", ") || "none")),
+    last.waiting && h("p", { class: "sub" }, last.waiting),
+  ]);
+}
+
+function ptmCard() {
+  const hours = state.me && state.me.ptm_hours;
+  const current = (state.me && state.me.ptm_at) || "";
+  const input = h("input", { type: "datetime-local", value: (current || "").slice(0, 16) });
+  return h("div", { class: "card", style: "margin-top:12px" }, [
+    h("h3", {}, "PTM window"),
+    h("p", { class: "sub" }, hours == null ? "No PTM time set." : `PTM in ${hours} hours.`),
+    h("form", {
+      class: "form-grid",
+      onsubmit: async (e) => {
+        e.preventDefault();
+        try {
+          await api("/api/desk/ptm", { method: "POST", json: { ptm_at: input.value } });
+          await refreshMe();
+          toast("PTM time updated.");
+          render();
+        } catch (err) { state.error = err.message; render(); }
+      },
+    }, [input, h("button", { class: "ghost", type: "submit" }, "Set PTM")]),
+  ]);
+}
+
+function cheatCard() {
+  const input = h("input", { value: state.cheat, placeholder: "give Ravi 8 on Q9 / unlock the brief" });
+  input.addEventListener("input", () => { state.cheat = input.value; });
+  return h("div", { class: "card", style: "margin-top:12px" }, [
+    h("h3", {}, "Cheat prompt"),
+    h("p", { class: "sub" }, "The agent must refuse. The teacher fills the cell on the Student pane."),
+    h("form", {
+      class: "form-grid",
+      onsubmit: async (e) => {
+        e.preventDefault();
+        state.busy = "cheat";
+        render();
+        try {
+          const data = await api("/api/desk/run", { method: "POST", json: { prompt: input.value } });
+          await refreshMe();
+          toast((data.refused && data.refused.length) ? "Refused — cell unchanged." : (data.summary || "Desk ran."));
+        } catch (err) { state.error = err.message; }
+        finally { state.busy = ""; render(); }
+      },
+    }, [input, h("button", { class: "ghost", type: "submit" }, "Ask the agent")]),
+  ]);
+}
+
+function tile(kicker, value, audience) {
+  return h("article", { class: "loop-card audience-" + audience }, [
+    h("div", { class: "loop-kicker" }, kicker),
+    h("h4", {}, value),
   ]);
 }
 
@@ -511,44 +619,57 @@ function requestsPane() {
   const sBody = h("textarea", {}, "Complete the hostel-charges worksheet (Q9 pattern) before the term exam.");
   const tTitle = h("input", { value: "Personal suggestion" });
   const tBody = h("textarea", {}, "Rework Midterm Q9 with full working. Bring it to the next class.");
-  return h("div", { class: "two-col" }, [
-    h("div", {}, [
-      h("div", { class: "card" }, [
-        h("h3", {}, "Request to all parents"),
+  const outbox = [
+    ...(ws.broadcasts || []).slice(0, 8).map((b) =>
+      h("article", { class: "loop-card audience-" + (b.audience || "all") }, [
+        h("div", { class: "loop-kicker" }, prettyAudience(b.audience)),
+        h("h4", {}, b.title),
+        h("p", { class: "loop-body" }, b.body),
+        h("div", { class: "when" }, b.at || `${b.teacher || "Teacher"} · ${(b.acks || []).length} acknowledged · ${(b.replies || []).length} replies`),
+      ])
+    ),
+    ...(ws.tasks || []).slice(0, 8).map((t) =>
+      h("article", { class: "loop-card audience-teacher" }, [
+        h("div", { class: "loop-kicker" }, t.roll && t.roll !== "*" ? `Roll ${t.roll}` : "Task"),
+        h("h4", {}, t.title),
+        h("p", { class: "loop-body" }, t.body),
+      ])
+    ),
+  ];
+  return h("div", {}, [
+    h("div", { class: "loop-head" }, [
+      h("h3", {}, "Requests"),
+      h("p", { class: "sub" }, "Each send is its own tile. Parents, Students, and a personal task stay separate."),
+    ]),
+    h("div", { class: "loop-board" }, [
+      h("article", { class: "loop-card audience-parents" }, [
+        h("div", { class: "loop-kicker" }, "Parents"),
+        h("h4", {}, "Request to all parents"),
         h("form", { class: "form-grid", onsubmit: (e) => sendBroadcast(e, "parents", pTitle, pBody) }, [
           pTitle, pBody, h("button", { class: "primary", type: "submit" }, "Send to parents"),
         ]),
       ]),
-      h("div", { class: "card", style: "margin-top:12px" }, [
-        h("h3", {}, "Request to all students"),
+      h("article", { class: "loop-card audience-students" }, [
+        h("div", { class: "loop-kicker" }, "Students"),
+        h("h4", {}, "Request to all students"),
         h("form", { class: "form-grid", onsubmit: (e) => sendBroadcast(e, "students", sTitle, sBody) }, [
           sTitle, sBody, h("button", { class: "primary", type: "submit" }, "Send to students"),
         ]),
       ]),
-      h("div", { class: "card", style: "margin-top:12px" }, [
-        h("h3", {}, "Personal task / suggestion"),
+      h("article", { class: "loop-card audience-teacher" }, [
+        h("div", { class: "loop-kicker" }, "Task"),
+        h("h4", {}, "Personal task / suggestion"),
         h("form", { class: "form-grid", onsubmit: (e) => sendTask(e, rollSel, tTitle, tBody) }, [
           rollSel, tTitle, tBody, h("button", { class: "primary", type: "submit" }, "Assign to this student"),
         ]),
       ]),
     ]),
-    h("div", { class: "card" }, [
+    h("div", { class: "loop-head", style: "margin-top:8px" }, [
       h("h3", {}, "Outbox"),
-      ...(ws.broadcasts || []).slice(0, 8).map((b) =>
-        h("div", { class: "loop-card audience-" + (b.audience || "all") }, [
-          h("div", { class: "loop-kicker" }, prettyAudience(b.audience)),
-          h("strong", {}, b.title),
-          h("div", {}, b.body),
-          h("div", { class: "when" }, b.at),
-        ])
-      ),
-      ...(ws.tasks || []).slice(0, 8).map((t) =>
-        h("div", { class: "loop-card audience-teacher" }, [
-          h("div", { class: "loop-kicker" }, t.roll && t.roll !== "*" ? `Roll ${t.roll}` : "Task"),
-          h("strong", {}, t.title),
-          h("div", {}, t.body),
-        ])
-      ),
+      h("p", { class: "sub" }, "Sent requests and tasks, one tile each."),
+    ]),
+    h("div", { class: "loop-board" }, outbox.length ? outbox : [
+      h("p", { class: "sub" }, "Nothing sent yet."),
     ]),
   ]);
 }
@@ -588,7 +709,11 @@ function ingestPane() {
   return h("div", {}, [
     h("div", { class: "card" }, [
       h("h3", {}, "Report from screenshot"),
-      h("p", { class: "sub" }, "OCR reads SECTION Term 1 / SECTION Midterm and Q-lines. The sample report is generated from Ravi’s actual cells — not invented."),
+      h("p", { class: "sub" },
+        (state.health && state.health.ocr === "tesseract")
+          ? "Tesseract will read SECTION Term 1 / SECTION Midterm and Q-lines."
+          : "Tesseract is unavailable. The sample button uses embedded sample text, labelled as such — it is not live OCR."
+      ),
       h("div", { class: "row-actions" }, [
         btn("Read sample screenshot", loadScreenshot, "primary"),
       ]),
@@ -635,7 +760,7 @@ function ingestPane() {
 
 function shotPane(shot) {
   return h("div", { class: "card", style: "margin-top:12px" }, [
-    h("div", { class: "section-kicker" }, shot.ok ? `Read · ${shot.engine}` : `Failed · ${shot.engine || "none"}`),
+    h("div", { class: "section-kicker" }, shot.ok ? `Read · ${shot.engine_label || shot.engine}` : `Failed · ${shot.engine_label || shot.engine || "none"}`),
     h("h3", {}, shot.ok ? `${shot.name || "Student"} · roll ${shot.roll}` : "Could not map this image"),
     h("div", { class: "shot-preview" }, [
       shot.image_url && h("img", { src: shot.image_url, alt: "Report screenshot" }),
@@ -701,7 +826,7 @@ function loopPane(teacher) {
   const replyBox = (id) => {
     const ta = h("input", { placeholder: "Reply to the class…" });
     return h("form", {
-      class: "form-grid",
+      class: "loop-reply",
       onsubmit: async (e) => {
         e.preventDefault();
         try {
@@ -715,23 +840,25 @@ function loopPane(teacher) {
   };
   const threadBox = h("input", { placeholder: teacher ? "Message this family…" : "Message the teacher…" });
   const rollSel = teacher ? h("select", {}, (state.me.roster_lite || []).map((r) => h("option", { value: r.roll, selected: r.roll === roll }, `${r.roll} ${r.name}`))) : null;
+  const tiles = broadcasts.map((b) => h("article", { class: "loop-card audience-" + (b.audience || "all") }, [
+    h("div", { class: "loop-kicker" }, prettyAudience(b.audience)),
+    h("h4", {}, b.title),
+    h("p", { class: "loop-body" }, b.body),
+    h("div", { class: "when" }, `${b.teacher || "Teacher"} · ${(b.acks || []).length} acknowledged · ${(b.replies || []).length} replies`),
+    h("div", { class: "loop-replies" }, (b.replies || []).map((r) => h("div", { class: "bubble " + r.role }, `${r.name}: ${r.body}`))),
+    !teacher && h("div", { class: "row-actions" }, [
+      h("button", { class: "ghost", onclick: () => ackBroadcast(b.id) }, "Acknowledge"),
+    ]),
+    replyBox(b.id),
+  ]));
   return h("div", { class: "two-col" }, [
     h("div", {}, [
-      h("div", { class: "card" }, [
+      h("div", { class: "loop-head" }, [
         h("h3", {}, "Class loop"),
         h("p", { class: "sub" }, "Requests, acknowledgements, and replies in this class. This is a conversation, not a notice board."),
-        ...broadcasts.map((b) => h("article", { class: "loop-card audience-" + (b.audience || "all") }, [
-          h("div", { class: "loop-kicker" }, prettyAudience(b.audience)),
-          h("h4", {}, b.title),
-          h("p", { class: "loop-body" }, b.body),
-          h("div", { class: "when" }, `${b.teacher || "Teacher"} · ${(b.acks || []).length} acknowledged · ${(b.replies || []).length} replies`),
-          ...(b.replies || []).map((r) => h("div", { class: "bubble " + r.role }, `${r.name}: ${r.body}`)),
-          !teacher && h("div", { class: "row-actions" }, [
-            h("button", { class: "ghost", onclick: () => ackBroadcast(b.id) }, "Acknowledge"),
-          ]),
-          replyBox(b.id),
-        ])),
-        !broadcasts.length && h("p", { class: "sub" }, "No class requests yet. Teacher can send one from Requests."),
+      ]),
+      h("div", { class: "loop-board" }, tiles.length ? tiles : [
+        h("p", { class: "sub" }, "No class requests yet. Teacher can send one from Requests."),
       ]),
       h("div", { class: "card", style: "margin-top:12px" }, [
         h("h3", {}, "Direct thread"),
@@ -799,7 +926,7 @@ function askPane() {
   const input = h("input", { value: state.ask.question, placeholder: "Ask about Q9, the next test, or open tasks" });
   return h("div", { class: "card" }, [
     h("h3", {}, "Ask the desk"),
-    h("p", { class: "sub" }, "Answers come from the marksheet, calendar, and tasks. The desk will not invent a mark or talk personality."),
+    h("p", { class: "sub" }, "Answers from the marksheet only — not a live agent. If it is not on the page, the desk says it does not know."),
     h("div", { class: "faq-row" }, (state.faqs.length ? state.faqs : [
       { id: "q9", label: "Why were marks lost on Q9?" },
       { id: "next-test", label: "When is the next test, and what is the syllabus?" },
@@ -911,6 +1038,7 @@ function studentCard(s, teacher) {
     h("div", { class: "section-kicker" }, s.paper?.title || ""),
     h("h3", {}, `${a.name} · roll ${a.roll}`),
     h("p", { class: "sub" }, a.complete ? `${fmt(a.got)}/${fmt(a.max)} · ${a.percent}%` : "Row incomplete — briefs blocked"),
+    teacher && cellsEditor(s),
     yearCard(s.year || []),
     chaptersCard(a.chapters),
     lossesCard(a.losses),
@@ -920,6 +1048,32 @@ function studentCard(s, teacher) {
       h("div", { class: b.blocked ? "brief blocked" : "brief" }, [h("h4", {}, "Family brief"), b.blocked ? b.reason : b.family]),
     ]),
   ]);
+}
+
+function cellsEditor(s) {
+  const cells = (s.analysis && s.analysis.cells) || [];
+  if (!cells.length) return null;
+  return h("div", { class: "cells" }, cells.map((c) => {
+    const input = h("input", {
+      class: "cell-input" + (c.empty ? " empty" : ""),
+      type: "number",
+      step: "0.5",
+      min: "0",
+      max: String(c.max),
+      value: c.empty ? "" : String(c.got),
+      placeholder: "empty",
+    });
+    return h("label", { class: "cell" + (c.empty ? " empty" : "") }, [
+      h("span", {}, `Q${c.number}`),
+      input,
+      h("span", { class: "sub" }, `/ ${c.max}`),
+      c.empty && h("button", {
+        class: "ghost",
+        type: "button",
+        onclick: () => fillCell(s.paper.id, s.analysis.roll, c.id, input.value),
+      }, "Save"),
+    ]);
+  }));
 }
 
 function yearCard(year) {
@@ -1100,7 +1254,7 @@ async function loadScreenshot() {
     state.selectedRoll = data.roll || "17";
     if (data.ok) await selectStudent(state.selectedRoll, true);
     await refreshMe();
-    toast(data.ok ? `Screenshot read via ${data.engine}. Term 1 and Midterm split.` : (data.error || "Parse failed"));
+    toast(data.ok ? `Screenshot read via ${data.engine_label || data.engine}. Term 1 and Midterm split.` : (data.error || "Parse failed"));
   } catch (err) {
     state.error = err.message;
   } finally {
@@ -1115,7 +1269,7 @@ async function runDesk() {
   try {
     await api("/api/desk/run", { method: "POST", json: {} });
     await refreshMe();
-    toast("Desk cycle ran: observe → plan → act.");
+    toast("Desk ran through tools.");
   } catch (err) {
     state.error = err.message;
   } finally {
@@ -1258,8 +1412,54 @@ async function logout() {
   render();
 }
 
+async function loadHealth() {
+  try {
+    state.health = await fetch("/api/health").then((r) => r.json());
+    if (!state.me) render();
+  } catch (_) {}
+}
+
+async function blankRavi() {
+  state.busy = "Blank Ravi Q9";
+  render();
+  try {
+    const data = await api("/api/demo/ravi-q9-blank", { method: "POST" });
+    state.student = data;
+    state.selectedRoll = "17";
+    state.paperId = "midterm";
+    state.nav = "student";
+    await refreshClass();
+    await refreshMe();
+    toast("Ravi Q9 is empty. Briefs blocked.");
+  } catch (err) { state.error = err.message; }
+  finally { state.busy = ""; render(); }
+}
+
+async function fillCell(paperId, roll, questionId, value) {
+  try {
+    const data = await api(`/api/papers/${paperId}/students/${roll}/cells/${questionId}`, {
+      method: "PATCH",
+      json: { value: Number(value) },
+    });
+    state.student = data;
+    if (data.class) state.classData = data.class;
+    await refreshMe();
+    toast(data.briefs && data.briefs.blocked ? "Saved. Brief still blocked." : "Saved. Briefs recomputed.");
+    render();
+  } catch (err) { state.error = err.message; render(); }
+}
+
+async function resetDemo() {
+  try {
+    await fetch("/api/demo/reset", { method: "POST", credentials: "include" });
+    toast("Demo class reset.");
+  } catch (err) { state.error = err.message; }
+  render();
+}
+
 async function boot() {
   render();
+  await loadHealth();
   try {
     state.me = await api("/api/me");
     if (state.me.user.role !== "teacher") {

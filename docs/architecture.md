@@ -12,13 +12,15 @@ Browser (teacher / student / parent)
         │     desk.py      incomplete scripts + PTM window
         │     data/markmap.json
         │
-        └── Strands desk orchestrator  (when Bedrock is configured)
-              agents-as-tools:
-                ingest clerk → paper mapper → score clerk
-                analyser → brief writer → run_desk_nags
-              Amazon Bedrock  Claude Sonnet
+        └── Strands desk agent  (always — scripted local model, or Bedrock)
+              Agent(...) calls @tools:
+                list_incomplete_rows → class_hotspots
+                → write_student_briefs → run_desk_nags
+              scripted-desk  or  Amazon Bedrock Claude Sonnet
 ```
 
-**Rule:** the model classifies, tags, drafts, and nags. Python owns marks, completeness, and “do not publish.”
+**Rule:** a desk run happens only because the agent called tools. Python owns marks, completeness, and “do not publish.” The model does not recap a cycle Python already finished.
 
-Optional later: AgentCore Runtime around the same FastAPI process. Not required to score Technical Implementation if the Strands loop above is live.
+Diagram: [architecture.svg](architecture.svg).
+
+Cron: `POST /api/desk/sweep` with `X-Markmap-Secret`. Optional later: AgentCore `{ "action": "sweep" }` on the same tools — after the local loop, not instead of it.

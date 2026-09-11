@@ -120,9 +120,9 @@ def write_student_briefs(roll: str, paper_id: str = "midterm") -> str:
 
 
 @strands_tool
-def run_desk_nags() -> str:
-    """Run the observe → plan → act desk cycle. Does not invent marks or unlock blocked briefs."""
-    result = desk.run_cycle()
+def run_desk_nags(class_id: str = "10-B") -> str:
+    """Apply observe → plan → act: teacher fill-marks task or class reteach proposal. Does not invent marks."""
+    result = desk.run_cycle(class_id or config.DEFAULT_CLASS_ID)
     store.agent_log("desk_runner", result.get("summary") or "")
     return _dumps(result)
 
@@ -169,11 +169,23 @@ def health() -> dict[str, Any]:
     return {
         "strands_sdk": _strands_importable(),
         "strands_enabled": config.strands_enabled(),
-        "model": config.BEDROCK_MODEL_ID if config.strands_enabled() else None,
+        "backend": config.model_backend() if config.strands_enabled() else None,
+        "model": (
+            config.BEDROCK_MODEL_ID
+            if config.model_backend() == "bedrock"
+            else "scripted-desk" if config.strands_enabled() else None
+        ),
         "region": config.AWS_REGION,
-        "ocr": _ocr_ready(),
+        "ocr": "tesseract" if _ocr_ready() else "unavailable",
+        "eval": _eval_snapshot(),
         "policy": policy.public(),
     }
+
+
+def _eval_snapshot() -> dict[str, int]:
+    from . import eval as evalmod
+
+    return evalmod.snapshot()
 
 
 def _strands_importable() -> bool:

@@ -1,124 +1,133 @@
-"""Strands multi-agent desk. Specialists wrap analyser tools. Desk delegates."""
+"""One Strands desk agent. Tools do the work; the model only chooses which to call."""
 
 from __future__ import annotations
 
 from typing import Any
 
 from . import config, store, tools
+from .hooks import PolicyHook
 
 DESK_PROMPT = """
-You are the Mark Map desk runner for Kavita Sharma, Class 10-B Mathematics.
+You are the Mark Map desk runner for Kavita Sharma.
 
-You do not invent marks. You do not publish a brief for an incomplete row.
-You do not talk about personality, potential, or mental health.
-
-Specialists (call them, do not recompute numbers yourself):
-- ingest_clerk — load demo paper / ingest text+CSV
-- paper_mapper — question-to-chapter map; teacher corrections
-- score_clerk — incomplete rows
-- analyser — one student, class hotspots
-- brief_writer — teacher vs family brief (will refuse if a cell is empty)
-
-You cannot: alter marks, invent empty cells, confirm a guessed chapter tag, send teacher notes to parents, unlock a blocked brief, or assign a grade. Those tools refuse.
+Python owns marks, percents, completeness, and the brief gate. You only call tools.
 
 When asked to run the desk:
-1. Call run_desk_nags — it already OBSERVES, PLANS, and ACTS in Python.
-2. Narrate that cycle. Do not invent marks. Do not unlock incomplete briefs.
-3. If a class reteach was proposed, tell the teacher it is waiting for approval.
+1. Call list_incomplete_rows.
+2. Call class_hotspots.
+3. Call write_student_briefs for roll 17 (it will refuse if a cell is empty — that is the gate).
+4. Call run_desk_nags for this class. That is the observe → plan → act cycle (teacher task or class reteach proposal).
+5. Then stop. Summarise what the tools returned. Do not invent marks. Do not unlock a blocked brief.
+
+You cannot: alter marks, invent empty cells, confirm a guessed chapter tag, send teacher notes to parents, unlock a blocked brief, or assign a grade. Those tools refuse.
 """.strip()
 
-INGEST_PROMPT = "You ingest papers, CSVs, and student-report screenshots. Call load_demo_midterm_2, ingest_paper_and_marks, or ingest_screenshot_report. Split Term 1 and Midterm. Never invent rows."
-MAPPER_PROMPT = "You map questions to chapters. [Chapter] in the paper wins. Flag needs_review. Teacher corrections go through set_question_chapter."
-SCORE_PROMPT = "You attach marks to questions. Empty cells stay empty. List incomplete rolls. Never fill a blank with zero or a guess."
-ANALYSER_PROMPT = "You report marks × chapter × time from analyse_student and class_hotspots. No psychology."
-BRIEF_PROMPT = "You write two briefs from write_student_briefs. If blocked, say so. Family brief has no PTM phrasing."
+DESK_TOOLS = [
+    tools.list_incomplete_rows,
+    tools.class_hotspots,
+    tools.write_student_briefs,
+    tools.run_desk_nags,
+    tools.map_current_paper,
+    tools.analyse_student,
+    tools.write_mark,
+    tools.unlock_brief,
+    tools.set_question_chapter,
+]
 
 
 def _model():
-    from strands.models import BedrockModel
+    if config.model_backend() == "bedrock":
+        from strands.models import BedrockModel
 
-    return BedrockModel(
-        model_id=config.BEDROCK_MODEL_ID,
-        region_name=config.AWS_REGION,
-        temperature=0.2,
-        streaming=False,
-    )
+        return BedrockModel(
+            model_id=config.BEDROCK_MODEL_ID,
+            region_name=config.AWS_REGION,
+            temperature=0.2,
+            streaming=False,
+        )
+    from .scripted import ScriptedDeskModel
 
-
-def _agent(system_prompt: str, agent_tools: list):
-    from strands import Agent
-
-    return Agent(
-        model=_model(),
-        system_prompt=system_prompt,
-        tools=agent_tools,
-        callback_handler=None,
-    )
-
-
-def _as_tool(agent, name: str, description: str):
-    if hasattr(agent, "as_tool"):
-        return agent.as_tool(name=name, description=description)
-    from strands import tool as strands_tool
-
-    @strands_tool(name=name, description=description)
-    def _run(query: str) -> str:
-        """Delegate to a specialist agent."""
-        return str(agent(query))
-
-    return _run
+    return ScriptedDeskModel()
 
 
 def build_desk():
-    ingest = _agent(
-        INGEST_PROMPT,
-        [tools.load_demo_midterm_2, tools.ingest_paper_and_marks, tools.ingest_screenshot_report],
+    from strands import Agent
+    from strands.handlers.callback_handler import null_callback_handler
+
+    return Agent(
+        model=_model(),
+        system_prompt=DESK_PROMPT,
+        tools=DESK_TOOLS,
+        hooks=[PolicyHook()],
+        callback_handler=null_callback_handler,
     )
-    mapper = _agent(MAPPER_PROMPT, [tools.map_current_paper, tools.set_question_chapter])
-    score = _agent(SCORE_PROMPT, [tools.list_incomplete_rows, tools.blank_ravi_q9])
-    analyse = _agent(ANALYSER_PROMPT, [tools.analyse_student, tools.class_hotspots])
-    brief = _agent(BRIEF_PROMPT, [tools.write_student_briefs])
-    desk = _agent(
-        DESK_PROMPT,
-        [
-            _as_tool(ingest, "ingest_clerk", "Load demo Midterm 2 or ingest a paper + marks CSV."),
-            _as_tool(mapper, "paper_mapper", "Show or correct the question-to-chapter map."),
-            _as_tool(score, "score_clerk", "List incomplete mark rows. Clear a cell for the guardrail demo."),
-            _as_tool(analyse, "analyser", "Per-student chapter analysis and class hotspots."),
-            _as_tool(brief, "brief_writer", "Teacher PTM brief and family brief. Blocked if marks are missing."),
-            tools.run_desk_nags,
-            tools.write_mark,
-            tools.unlock_brief,
-        ],
-    )
-    return desk
 
 
 def run_desk_agent(prompt: str | None = None, class_id: str | None = None) -> dict[str, Any]:
-    from . import desk
-
-    cycle = desk.run_cycle(class_id or config.DEFAULT_CLASS_ID)
-    if not config.strands_enabled():
-        cycle["note"] = (
-            "Cycle ran in Python (observe → plan → act). Add AWS credentials "
-            "to let the Strands desk narrate it."
-        )
-        return cycle
-
+    class_id = class_id or config.DEFAULT_CLASS_ID
+    backend = config.model_backend()
     message = prompt or (
-        "Narrate this desk cycle. Do not invent marks. Do not unlock blocked briefs.\n"
-        f"{cycle.get('summary')}"
+        f"Run the desk for class {class_id}. "
+        "Call list_incomplete_rows, class_hotspots, write_student_briefs for roll 17, "
+        "then run_desk_nags. Do not invent marks. Do not unlock blocked briefs."
     )
-    desk_agent = build_desk()
-    response = desk_agent(message)
+    agent = build_desk()
+    response = agent(message)
     text = str(response)
-    store.agent_log("desk_orchestrator", text[:2000], {"mode": "strands"})
-    cycle["strands"] = True
-    cycle["mode"] = "strands"
-    cycle["summary"] = text
-    cycle["model"] = config.BEDROCK_MODEL_ID
-    return cycle
+    called = _tools_called(agent)
+    refused = [
+        e
+        for e in (store.load().get("agent_log") or [])
+        if e.get("kind") == "refuse"
+    ][-8:]
+    store.agent_log("desk_orchestrator", text[:2000], {"mode": backend, "tools": called})
+    cycle = _latest_cycle(class_id)
+    last = {
+        "at": (cycle or {}).get("at"),
+        "observed": ((cycle or {}).get("observe") or {}),
+        "did": called,
+        "refused": [{"tool": e.get("extra", {}).get("tool"), "text": e.get("text")} for e in refused],
+        "waiting": next(
+            (s["text"] for s in ((cycle or {}).get("steps") or []) if s.get("phase") == "wait"),
+            None,
+        ),
+        "summary": text,
+        "mode": backend,
+    }
+
+    def _mut(state: dict[str, Any]) -> None:
+        state["last_desk_run"] = last
+
+    store.update(_mut)
+    return {
+        "alerts": (cycle or {}).get("alerts") or store.load().get("alerts") or [],
+        "strands": True,
+        "mode": backend,
+        "cycle": cycle,
+        "summary": text,
+        "tools_called": called,
+        "refused": last["refused"],
+        "last_run": last,
+        "model": config.BEDROCK_MODEL_ID if backend == "bedrock" else "scripted-desk",
+    }
 
 
 def run_prompt(prompt: str) -> dict[str, Any]:
     return run_desk_agent(prompt)
+
+
+def _tools_called(agent) -> list[str]:
+    names: list[str] = []
+    for message in getattr(agent, "messages", []) or []:
+        if message.get("role") != "assistant":
+            continue
+        for block in message.get("content") or []:
+            use = block.get("toolUse")
+            if use and use.get("name"):
+                names.append(use["name"])
+    return names
+
+
+def _latest_cycle(class_id: str) -> dict[str, Any] | None:
+    cycles = [c for c in (store.load().get("desk_cycles") or []) if c.get("class_id") == class_id]
+    return cycles[-1] if cycles else None

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from . import analyser
@@ -36,7 +35,14 @@ def write_briefs(analysis: dict[str, Any], year: list[dict[str, Any]] | None = N
     teacher = _teacher_brief(analysis, year or [])
     family = _family_brief(analysis, year or [])
     teacher = _scrub(teacher, family=False)
-    family = _scrub(family, family=True)
+    family, leak = _family_or_block(family)
+    if leak:
+        return {
+            "blocked": True,
+            "reason": "Family brief blocked — staff wording leaked. We do not silently delete it.",
+            "teacher": teacher,
+            "family": None,
+        }
     return {
         "blocked": False,
         "reason": None,
@@ -116,9 +122,14 @@ def _score(value: float) -> str:
 def _scrub(text: str, family: bool) -> str:
     if analyser.contains_forbidden(text):
         raise ValueError("Brief attempted a personality or mental-health claim.")
-    if family:
-        lowered = text.lower()
-        for word in FAMILY_BANNED:
-            if word in lowered:
-                text = re.sub(re.escape(word), "", text, flags=re.I)
     return text.strip()
+
+
+def _family_or_block(text: str) -> tuple[str | None, list[str]]:
+    if analyser.contains_forbidden(text):
+        raise ValueError("Brief attempted a personality or mental-health claim.")
+    lowered = text.lower()
+    hits = [word for word in FAMILY_BANNED if word in lowered]
+    if hits:
+        return None, hits
+    return text.strip(), []

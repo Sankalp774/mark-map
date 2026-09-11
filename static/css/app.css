@@ -733,45 +733,119 @@ tr.selected { background: #fff7ed; }
   margin-bottom: 8px;
 }
 .msg .when { font-size: 11px; color: var(--muted); }
+.loop-head h3 {
+  margin: 0 0 4px;
+  font-family: var(--serif);
+  font-size: 22px;
+}
+.loop-head { margin-bottom: 14px; }
+.loop-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  align-items: stretch;
+  margin-bottom: 16px;
+}
 .loop-card {
-  border-radius: 20px;
-  padding: 14px 16px;
-  margin-bottom: 12px;
+  border-radius: 28px;
+  padding: 18px 18px 14px;
+  margin-bottom: 0;
   border: 1px solid transparent;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 12px 28px rgba(28, 25, 23, 0.08);
+}
+.loop-board .loop-card { min-height: 240px; }
+.loop-board.compact { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.loop-board.compact .loop-card { min-height: 128px; padding: 16px; }
+.loop-card.trace-ok { background: #dcfce7; border-color: #86efac; }
+.loop-card.trace-warn { background: #fef9c3; border-color: #fde68a; }
+.loop-card.trace-next { background: #ffe8cc; border-color: #fdba74; }
+.loop-card.trace-wait { background: #f5f5f4; border-color: #e7e5e4; }
+.loop-card ul { margin: 8px 0 0; padding-left: 18px; font-size: 13px; line-height: 1.45; }
+.health-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+.cells { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.cell {
+  display: grid;
+  gap: 4px;
+  min-width: 72px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid var(--line);
+  font-size: 12px;
+}
+.cell.empty { background: #fefce8; border-color: #facc15; }
+.cell-input { width: 64px; padding: 4px 6px; border-radius: 8px; border: 1px solid var(--line); }
+.cell-input.empty { background: #fef9c3; }
+.desk-quiet .loop-card,
+.desk-quiet .loop-card.audience-students,
+.desk-quiet .loop-card.audience-parents,
+.desk-quiet .loop-card.audience-all,
+.desk-quiet .loop-card.audience-teacher,
+.desk-quiet .loop-card.trace-ok,
+.desk-quiet .loop-card.trace-warn,
+.desk-quiet .loop-card.trace-next,
+.desk-quiet .loop-card.trace-wait {
+  background: var(--sheet);
+  border-color: var(--line);
 }
 .loop-card h4 {
-  margin: 4px 0 6px;
+  margin: 6px 0 8px;
   font-family: var(--serif);
-  font-size: 18px;
+  font-size: 20px;
+  letter-spacing: -0.02em;
 }
-.loop-card .loop-body { margin: 0 0 8px; line-height: 1.45; }
+.loop-card .loop-body { margin: 0 0 10px; line-height: 1.45; }
+.loop-replies { display: grid; gap: 6px; margin: 4px 0 8px; }
+.loop-reply {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 10px;
+}
+.loop-reply input {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 12px;
+  border: 1px solid rgba(28, 25, 23, 0.12);
+  border-radius: 14px;
+  background: rgba(255,255,255,0.72);
+}
+.loop-card .form-grid input,
+.loop-card .form-grid textarea,
+.loop-card .form-grid select {
+  background: rgba(255,255,255,0.72);
+  border-radius: 14px;
+}
 .loop-kicker {
   font-family: var(--mono);
   font-size: 11px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--stamp);
   margin-bottom: 2px;
 }
 .loop-card.audience-students {
-  background: #ecfeff;
+  background: #d7f8fb;
   border-color: #67e8f9;
 }
 .loop-card.audience-parents {
-  background: #fff7ed;
+  background: #ffe8cc;
   border-color: #fdba74;
 }
 .loop-card.audience-all {
-  background: #fefce8;
+  background: #fef9c3;
   border-color: #fde68a;
 }
 .loop-card.audience-teacher {
-  background: #f5f3ff;
+  background: #ede9fe;
   border-color: #ddd6fe;
 }
 .loop-card.thread-card {
-  background: #f0fdf4;
+  background: #dcfce7;
   border-color: #86efac;
+  min-height: 0;
 }
 .inspector {
   background: #16181f;
@@ -831,7 +905,8 @@ tr.selected { background: #fff7ed; }
 @media (max-width: 980px) {
   .shell { grid-template-columns: 1fr; }
   .sidenav { flex-direction: row; flex-wrap: wrap; }
-  .shot-preview, .two-col, .stats-row { grid-template-columns: 1fr; }
+  .shot-preview, .two-col, .stats-row, .loop-board { grid-template-columns: 1fr; }
+  .loop-board.compact { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mac-stack {
     position: relative;
     top: 0;

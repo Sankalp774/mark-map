@@ -53,9 +53,9 @@ def extract_text(image_bytes: bytes) -> tuple[str, str]:
             work = ImageEnhance.Contrast(work).enhance(1.6)
             work = work.filter(ImageFilter.SHARPEN)
             ocr = pytesseract.image_to_string(work, config="--psm 6")
-            if HEADER_COUNT(ocr) < 3:
+            if header_count(ocr) < 3:
                 alt = pytesseract.image_to_string(work, config="--psm 4")
-                if HEADER_COUNT(alt) > HEADER_COUNT(ocr):
+                if header_count(alt) > header_count(ocr):
                     ocr = alt
         except Exception:
             ocr = ""
@@ -77,11 +77,14 @@ def _looks_like_report(text: str) -> bool:
         return False
     if SECTION_SPLIT.search(text) and Q_LINE.search(text):
         return True
-    return bool(HEADER_COUNT(text) >= 3)
+    return bool(header_count(text) >= 3)
 
 
-def HEADER_COUNT(text: str) -> int:
+def header_count(text: str) -> int:
     return len(Q_LINE.findall(text))
+
+
+HEADER_COUNT = header_count
 
 
 def parse_report(text: str) -> dict[str, Any]:
@@ -168,6 +171,7 @@ def read_and_maybe_ingest(image_bytes: bytes) -> dict[str, Any]:
         return {
             "ok": False,
             "engine": engine,
+            "engine_label": "embedded sample text" if engine == "png-meta" else engine,
             "text": text,
             "error": "No Term 1 / Midterm questions found. Use a report that lists SECTION Term 1 and SECTION Midterm with Q1 (4 marks) 3/4 lines.",
             "sections": [],
@@ -182,6 +186,7 @@ def read_and_maybe_ingest(image_bytes: bytes) -> dict[str, Any]:
     return {
         "ok": True,
         "engine": engine,
+        "engine_label": "embedded sample text" if engine == "png-meta" else engine,
         "text": text,
         "error": None,
         **result,

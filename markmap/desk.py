@@ -138,7 +138,7 @@ def observe(class_id: str | None = None) -> dict[str, Any]:
 
 
 def run_cycle(class_id: str | None = None) -> dict[str, Any]:
-    """OBSERVE → PLAN → ACT → WAIT. Python owns the acts; the model only narrates."""
+    """OBSERVE → PLAN → ACT → WAIT. Called by the desk agent via run_desk_nags."""
     class_id = class_id or config.DEFAULT_CLASS_ID
     state = store.load()
     prev = (state.get("desk_snapshot") or {}).get(class_id) or {}

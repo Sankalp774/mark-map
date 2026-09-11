@@ -172,10 +172,11 @@ def _compose(faq_id: str | None, question: str, user: dict[str, Any], snap: dict
         )
     if question:
         return (
-            "I can only answer from the marksheet, calendar, and open tasks. "
-            "Try a FAQ chip — Q9, next test, tasks, or the family brief."
+            "I don't know from this marksheet. "
+            "Answers come from marks, calendar, and open tasks only — not a live agent. "
+            "Try a FAQ chip: Q9, next test, tasks, or the family brief."
         )
-    return "Choose a FAQ chip to ask the desk."
+    return "Choose a FAQ chip. Answers are from the marksheet only."
 
 
 def _n(value: float) -> str:
