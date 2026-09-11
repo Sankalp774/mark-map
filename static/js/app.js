@@ -372,15 +372,18 @@ function deskPane() {
     h("div", { class: "alerts" }, alerts.map((a) => h("div", { class: `pill ${a.level}` }, a.text))),
     cycle && h("div", { class: "card" }, [
       h("h3", {}, "Desk cycle"),
-      h("p", { class: "sub" }, "Observe → plan → act → wait. The desk does not invent marks or unlock blocked briefs."),
-      h("div", { class: "cycle" }, (cycle.steps || []).map((s) =>
-        h("div", { class: "cycle-step " + s.phase }, [
-          h("div", { class: "cycle-phase" }, s.phase),
-          h("div", {}, s.text),
-        ])
-      )),
+      h("p", { class: "sub" }, "Observe → plan → act → wait. Python owns marks. Agents operate inside the permission boundary."),
+      (cycle.trace || []).length
+        ? h("div", { class: "trace" }, cycle.trace.map((t) => h("div", { class: "trace-item " + t.kind }, t.text)))
+        : h("div", { class: "cycle" }, (cycle.steps || []).map((s) =>
+          h("div", { class: "cycle-step " + s.phase }, [
+            h("div", { class: "cycle-phase" }, s.phase),
+            h("div", {}, s.text),
+          ])
+        )),
       cycle.observe?.strategy?.recommendation?.leverage && h("p", { class: "sub", style: "margin-top:10px" }, cycle.observe.strategy.recommendation.leverage),
     ]),
+    policyCard(),
     proposals.length > 0 && h("div", { class: "card", style: "margin-top:12px" }, [
       h("h3", {}, "Waiting for you"),
       ...proposals.map((p) => h("div", { class: "msg" }, [
@@ -448,6 +451,21 @@ function graphPane() {
   return card;
 }
 
+function policyCard() {
+  const pol = (state.me && state.me.health && state.me.health.policy) || {};
+  const can = pol.can || [];
+  const cannot = pol.cannot || [];
+  if (!can.length && !cannot.length) return null;
+  return h("div", { class: "card policy", style: "margin-top:12px" }, [
+    h("h3", {}, "Agent permissions"),
+    h("p", { class: "sub" }, pol.rule || "Python establishes reality. Agents operate within it."),
+    h("div", { class: "policy-grid" }, [
+      h("div", {}, [h("div", { class: "section-kicker" }, "Can"), h("ul", {}, can.map((x) => h("li", {}, x.replace(/_/g, " "))))]),
+      h("div", {}, [h("div", { class: "section-kicker" }, "Cannot"), h("ul", {}, cannot.map((x) => h("li", {}, x.replace(/_/g, " "))))]),
+    ]),
+  ]);
+}
+
 function graphInspectorKids() {
   const pick = state.graphPick;
   if (!pick) return [h("div", {}, "Click a question node. Addressing Q9 creates a task for that student. Bonus cannot fill an empty cell.")];
@@ -455,6 +473,14 @@ function graphInspectorKids() {
     h("div", { class: "section-kicker" }, pick.kind),
     h("div", { style: "font-size:18px;margin:6px 0" }, String(pick.label || "").replace(/[\[\]]/g, "")),
     pick.chapter && h("div", {}, `Chapter [[${pick.chapter}]] · ${pick.band || ""}`),
+    pick.confidence != null && h("div", { class: "sub" },
+      pick.needs_review
+        ? `Probably ${pick.chapter} (${Math.round(pick.confidence * 100)}%). Needs teacher confirmation before student analysis uses it as fact.`
+        : `Mapped from ${pick.source || "paper"} (${Math.round(pick.confidence * 100)}%).`
+    ),
+    pick.leaked && pick.affected != null && h("div", { class: "pill amber" },
+      `${pick.affected}/${pick.class_n || "?"} students leaked here · mean ${pick.class_percent}% · ${pick.lost} marks lost`
+    ),
     pick.addressed && h("div", { class: "pill green" }, "Addressed"),
     pick.bonus ? h("div", {}, `Bonus recorded: +${pick.bonus}`) : null,
   ];
@@ -629,7 +655,9 @@ function familySection(block) {
     chaptersCard(a.chapters),
     lossesCard(a.losses),
     memoryCard(block.memory),
-    brief && (brief.blocked) ? h("div", { class: "brief blocked" }, brief.reason) : h("div", { class: "brief" }, brief.family || "")),
+    brief && (brief.blocked
+      ? h("div", { class: "brief blocked" }, brief.reason)
+      : h("div", { class: "brief" }, brief.family || "")),
     brainCardStatic(block.brain, `${block.title} · local graph`),
   ]);
 }
@@ -809,11 +837,12 @@ function mapCard(paper) {
     h("div", { class: "section-kicker" }, paper.section === "term-1" ? "Term 1" : "Midterm"),
     h("h3", {}, `${paper.title} · question map`),
     h("table", {}, [
-      h("thead", {}, h("tr", {}, ["Q", "Max", "Chapter", "Source"].map((t) => h("th", {}, t)))),
+      h("thead", {}, h("tr", {}, ["Q", "Max", "Chapter", "Confidence", "Source"].map((t) => h("th", {}, t)))),
       h("tbody", {}, paper.questions.map((q) => h("tr", {}, [
         h("td", {}, `Q${q.number}`),
         h("td", {}, String(q.max_marks)),
         h("td", {}, chapterEditor(paper.id, q)),
+        h("td", {}, q.confidence == null ? "—" : `${Math.round(q.confidence * 100)}%`),
         h("td", {}, h("span", { class: `tag ${q.source}` }, q.needs_review ? "needs review" : q.source)),
       ]))),
     ]),
@@ -1210,6 +1239,7 @@ async function logout() {
 }
 
 async function boot() {
+  render();
   try {
     state.me = await api("/api/me");
     if (state.me.user.role !== "teacher") {

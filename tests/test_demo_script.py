@@ -9,9 +9,11 @@ def test_map_paper_tag_wins_keyword_needs_review():
     assert by_id["q9"]["chapter"] == "Linear Equations"
     assert by_id["q9"]["source"] == "paper_tag"
     assert by_id["q9"]["needs_review"] is False
+    assert by_id["q9"]["confidence"] == 1.0
     assert by_id["q10"]["chapter"] == "Statistics"
     assert by_id["q10"]["source"] == "keyword"
     assert by_id["q10"]["needs_review"] is True
+    assert by_id["q10"]["confidence"] < 1.0
 
 
 def test_demo_script_ravi_and_hotspot(tmp_store):

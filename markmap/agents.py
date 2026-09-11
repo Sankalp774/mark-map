@@ -19,6 +19,8 @@ Specialists (call them, do not recompute numbers yourself):
 - analyser — one student, class hotspots
 - brief_writer — teacher vs family brief (will refuse if a cell is empty)
 
+You cannot: alter marks, invent empty cells, confirm a guessed chapter tag, send teacher notes to parents, unlock a blocked brief, or assign a grade. Those tools refuse.
+
 When asked to run the desk:
 1. Call run_desk_nags — it already OBSERVES, PLANS, and ACTS in Python.
 2. Narrate that cycle. Do not invent marks. Do not unlock incomplete briefs.
@@ -85,6 +87,8 @@ def build_desk():
             _as_tool(analyse, "analyser", "Per-student chapter analysis and class hotspots."),
             _as_tool(brief, "brief_writer", "Teacher PTM brief and family brief. Blocked if marks are missing."),
             tools.run_desk_nags,
+            tools.write_mark,
+            tools.unlock_brief,
         ],
     )
     return desk

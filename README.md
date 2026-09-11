@@ -78,9 +78,9 @@ cp .env.example .env
 # enable Claude Sonnet on Bedrock (inference profile us.anthropic.claude-sonnet-4-6)
 ```
 
-`GET /api/health` reports `strands_enabled`.
+`GET /api/health` reports `strands_enabled` and the agent permission boundary (`can` / `cannot`). Guessed chapter tags carry a confidence score and stay `needs_review` until the teacher confirms them. Run desk writes a visible trace (checked completeness → blocked briefs → teacher task) so the loop is inspectable.
 
-Do **not** file the $50 credits form twice. Request by **11 Sep 2026, 12:00 PT** if you have not already.
+Do **not** file the $50 credits form twice. The code is one-time; redeem it on the Paid plan in Billing → Credits.
 
 ## Architecture
 

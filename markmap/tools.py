@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from . import analyser, briefs, config, desk, seed, store
+from . import analyser, briefs, config, desk, policy, seed, store
 
 try:
     from strands import tool as strands_tool
@@ -55,9 +55,20 @@ def map_current_paper(paper_id: str = "midterm") -> str:
 
 @strands_tool
 def set_question_chapter(paper_id: str, question_id: str, chapter: str) -> str:
-    """Teacher correction for a chapter tag. Use when the map is unsure."""
-    paper = analyser.set_question_chapter(paper_id, question_id, chapter)
-    return _dumps({"paper_id": paper_id, "questions": paper["questions"]})
+    """Agents cannot confirm a guessed tag. Teacher confirms it on the question map."""
+    return _dumps(policy.refuse("change_chapter_without_approval", f"{paper_id}/{question_id} stays needs_review."))
+
+
+@strands_tool
+def write_mark(roll: str, question_id: str, value: float) -> str:
+    """Refused. Agents do not write mark cells."""
+    return _dumps(policy.refuse("alter_marks", f"Would have written {roll} {question_id}={value}."))
+
+
+@strands_tool
+def unlock_brief(roll: str) -> str:
+    """Refused. Incomplete rows stay blocked."""
+    return _dumps(policy.refuse("unlock_incomplete_briefs", f"Roll {roll} is unchanged."))
 
 
 @strands_tool
@@ -143,6 +154,8 @@ PYTHON_TOOLS = [
     ingest_screenshot_report,
     map_current_paper,
     set_question_chapter,
+    write_mark,
+    unlock_brief,
     list_incomplete_rows,
     analyse_student,
     class_hotspots,
@@ -159,6 +172,7 @@ def health() -> dict[str, Any]:
         "model": config.BEDROCK_MODEL_ID if config.strands_enabled() else None,
         "region": config.AWS_REGION,
         "ocr": _ocr_ready(),
+        "policy": policy.public(),
     }
 
 

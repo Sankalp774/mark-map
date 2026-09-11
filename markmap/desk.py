@@ -242,6 +242,7 @@ def run_cycle(class_id: str | None = None) -> dict[str, Any]:
         "steps": steps,
         "acts": acts,
         "alerts": alerts,
+        "trace": _trace(seen, steps, acts),
         "summary": " ".join(s["text"] for s in steps if s["phase"] in {"observe", "act", "wait"}),
     }
 
@@ -269,6 +270,42 @@ def run_cycle(class_id: str | None = None) -> dict[str, Any]:
 
 def run_desk() -> dict[str, Any]:
     return run_cycle(config.DEFAULT_CLASS_ID)
+
+
+def _trace(seen: dict[str, Any], steps: list[dict[str, Any]], acts: list[dict[str, Any]]) -> list[dict[str, str]]:
+    """Judge-facing tool/state log. Not chain-of-thought."""
+    items: list[dict[str, str]] = []
+    n = seen.get("n") or 0
+    ready = seen.get("ready") or 0
+    incomplete = seen.get("incomplete") or []
+    items.append({"kind": "ok", "text": f"Checked class completeness ({ready}/{n})"})
+    rec = (seen.get("strategy") or {}).get("recommendation") or {}
+    if incomplete:
+        items.append({"kind": "ok", "text": f"Found {len(incomplete)} incomplete cells"})
+        items.append({"kind": "ok", "text": "Asked Score Clerk for affected students"})
+        items.append({"kind": "ok", "text": "Asked Analyser for class hotspots"})
+        items.append({"kind": "warn", "text": "PTM briefs blocked — a cell is still empty"})
+        if any(a.get("kind") == "teacher_task" for a in acts):
+            items.append({"kind": "next", "text": "Created teacher task to fill missing cells"})
+        else:
+            items.append({"kind": "next", "text": "Fill-marks task already on the desk"})
+        items.append({"kind": "wait", "text": "Waiting for marks completion"})
+        return items
+    items.append({"kind": "ok", "text": f"{ready}/{n} marks complete"})
+    items.append({"kind": "ok", "text": "Brief gate unlocked"})
+    if rec.get("chapter"):
+        qid = rec.get("question_id") or ""
+        qlabel = qid.upper().replace("Q", "Q") if qid else "hotspot"
+        items.append({"kind": "ok", "text": f"Found {qlabel} as highest-loss question ({rec.get('chapter')})"})
+        items.append({"kind": "ok", "text": f"{rec.get('affected') or 0} students affected"})
+    if any(a.get("kind") == "propose" for a in acts):
+        items.append({"kind": "next", "text": "Recommended class intervention — waiting for teacher approval"})
+    elif rec.get("kind") == "class_reteach":
+        items.append({"kind": "next", "text": "Class remediation already proposed or assigned"})
+    if any(s.get("phase") == "verify" and "Measured" in (s.get("text") or "") for s in steps):
+        items.append({"kind": "ok", "text": "Measured intervention outcomes on the next paper"})
+    items.append({"kind": "wait", "text": "Waiting for new information"})
+    return items
 
 
 def _observe_text(seen: dict[str, Any]) -> str:

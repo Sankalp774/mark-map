@@ -98,9 +98,9 @@ def map_paper(paper_text: str) -> list[dict[str, Any]]:
         end = headers[idx + 1][0] if idx + 1 < len(headers) else len(lines)
         prompt = "\n".join(lines[line_no + 1 : end]).strip()
         if tag:
-            chapter, source, needs_review = tag, "paper_tag", False
+            chapter, source, needs_review, confidence = tag, "paper_tag", False, 1.0
         else:
-            chapter, source, needs_review = _guess_chapter(prompt)
+            chapter, source, needs_review, confidence = _guess_chapter(prompt)
         questions.append(
             {
                 "id": f"q{number}",
@@ -110,21 +110,28 @@ def map_paper(paper_text: str) -> list[dict[str, Any]]:
                 "prompt": prompt,
                 "source": source,
                 "needs_review": needs_review,
+                "confidence": confidence,
             }
         )
     questions.sort(key=lambda q: q["number"])
     return questions
 
 
-def _guess_chapter(prompt: str) -> tuple[str, str, bool]:
+def _guess_chapter(prompt: str) -> tuple[str, str, bool, float]:
     blob = f" {prompt.lower()} "
     scores: dict[str, int] = {}
     for chapter, words in CHAPTER_KEYWORDS.items():
         scores[chapter] = sum(1 for word in words if word in blob)
-    best = max(scores, key=lambda k: scores[k])
-    if scores[best] <= 0:
-        return "Untagged", "none", True
-    return best, "keyword", True
+    ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
+    best, hits = ranked[0]
+    second = ranked[1][1] if len(ranked) > 1 else 0
+    if hits <= 0:
+        return "Untagged", "none", True, 0.0
+    raw = min(0.92, 0.48 + 0.16 * hits)
+    if second > 0 and second >= hits:
+        raw -= 0.22
+    confidence = round(max(0.35, raw), 2)
+    return best, "keyword", True, confidence
 
 
 def parse_marks_csv(csv_text: str, questions: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -193,6 +200,7 @@ def set_question_chapter(paper_id: str, question_id: str, chapter: str) -> dict[
                 question["chapter"] = chapter
                 question["source"] = "teacher"
                 question["needs_review"] = False
+                question["confidence"] = 1.0
                 return
         raise KeyError(f"Unknown question {question_id}")
 
@@ -285,6 +293,15 @@ def class_hotspots(paper: dict[str, Any], rows: list[dict[str, Any]]) -> list[di
             total += cell
         avg = total / n
         percent = (avg / question["max_marks"]) if question["max_marks"] else 0.0
+        lost = 0.0
+        affected_rolls: list[str] = []
+        for row in complete:
+            cell = row["cells"].get(qid)
+            if cell is None:
+                continue
+            lost += max(0.0, float(question["max_marks"]) - float(cell))
+            if question["max_marks"] and (cell / question["max_marks"]) < 0.50:
+                affected_rolls.append(row["roll"])
         hotspots.append(
             {
                 "question_id": qid,
@@ -295,6 +312,9 @@ def class_hotspots(paper: dict[str, Any], rows: list[dict[str, Any]]) -> list[di
                 "percent": round(percent * 100, 1),
                 "n": n,
                 "leaked": percent < 0.50,
+                "lost": round(lost, 1),
+                "affected": len(affected_rolls),
+                "affected_rolls": affected_rolls,
             }
         )
     hotspots.sort(key=lambda h: (h["percent"], h["number"]))
@@ -531,6 +551,7 @@ def brain_graph(
             if cell is not None and question["max_marks"]:
                 ratio = cell / question["max_marks"]
                 band = _band(ratio)
+        hot = next((h for h in (hotspots or []) if h.get("question_id") == question["id"]), None)
         nodes.append(
             {
                 "id": qid,
@@ -543,6 +564,13 @@ def brain_graph(
                 "question_id": question["id"],
                 "number": question["number"],
                 "chapter": chapter,
+                "confidence": question.get("confidence"),
+                "needs_review": bool(question.get("needs_review")),
+                "source": question.get("source"),
+                "affected": (hot or {}).get("affected"),
+                "lost": (hot or {}).get("lost"),
+                "class_percent": (hot or {}).get("percent"),
+                "class_n": (hot or {}).get("n"),
             }
         )
         edges.append({"source": cid, "target": qid, "kind": "asks"})

@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import analyser, auth, briefs, config, desk, query, seed, store, tools, workspace
+from . import analyser, auth, briefs, config, desk, policy, query, seed, store, tools, workspace
 from . import agents as agent_runtime
 
 @asynccontextmanager
@@ -143,6 +143,11 @@ def index() -> FileResponse:
 @app.get("/api/health")
 def health() -> dict[str, Any]:
     return {"ok": True, **tools.health()}
+
+
+@app.get("/api/policy")
+def agent_policy() -> dict[str, Any]:
+    return policy.public()
 
 
 @app.post("/api/login")

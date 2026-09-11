@@ -246,6 +246,20 @@ button {
   color: var(--muted);
   margin-bottom: 4px;
 }
+.trace { display: grid; gap: 6px; margin-top: 10px; font-family: var(--mono); font-size: 13px; }
+.trace-item {
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid var(--line);
+}
+.trace-item.ok::before { content: "✓ "; color: var(--green); }
+.trace-item.warn::before { content: "⚠ "; color: var(--amber); }
+.trace-item.next::before { content: "→ "; color: var(--stamp); }
+.trace-item.wait::before { content: "… "; color: var(--muted); }
+.policy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.policy-grid ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; color: var(--muted); }
+@media (max-width: 720px) { .policy-grid { grid-template-columns: 1fr; } }
 .memory { margin: 12px 0; padding: 10px 12px; background: #f6f1e8; border-radius: 12px; }
 
 .mac-does {
