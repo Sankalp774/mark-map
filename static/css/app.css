@@ -726,10 +726,11 @@ tr.selected { background: #fff7ed; }
   height: 100%;
   display: block;
   min-height: 240px;
+  pointer-events: all;
 }
 .mm-tip {
-  position: absolute;
-  transform: translate(-50%, calc(-100% - 14px));
+  position: fixed;
+  transform: none;
   background: #111827;
   color: #f9fafb;
   border: 1px solid rgba(255,255,255,0.18);
@@ -739,7 +740,7 @@ tr.selected { background: #fff7ed; }
   font-family: var(--mono);
   letter-spacing: 0.02em;
   pointer-events: none;
-  z-index: 30;
+  z-index: 10000;
   white-space: nowrap;
   box-shadow: 0 12px 28px rgba(0,0,0,0.45);
   opacity: 0;

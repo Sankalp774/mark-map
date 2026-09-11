@@ -1509,7 +1509,7 @@ function mountMindmap(host, graph, interactive = true) {
     g.append(
       svgEl("circle", {
         r: Math.max(n.r + 16, 24),
-        fill: "transparent",
+        fill: "rgba(0,0,0,0.01)",
         class: "mm-hit",
       }),
       svgEl("circle", {
@@ -1520,6 +1520,7 @@ function mountMindmap(host, graph, interactive = true) {
         "stroke-width": n.empty ? 2 : 1.5,
         "stroke-dasharray": n.empty ? "3 3" : null,
       }),
+      svgEl("title", {}, tipText(n)),
       svgEl("text", {
         class: "mm-label",
         x: 0,
@@ -1528,50 +1529,83 @@ function mountMindmap(host, graph, interactive = true) {
         fill: (n.kind === "question" || n.kind === "chapter") ? fill : null,
       }, label),
     );
-    if (interactive) {
-      g.style.cursor = "pointer";
-      const onOver = (ev) => {
-        ev.stopPropagation();
-        focusMindmap(n, nodes, edgeEls, nodeEls);
-        showMindTip(host, n, ev);
-      };
-      g.addEventListener("pointerenter", onOver);
-      g.addEventListener("pointermove", onOver);
-      g.addEventListener("click", (ev) => {
-        ev.stopPropagation();
-        state.graphPick = n;
-        fillInspector(inspectGraphNode(n));
-      });
-    }
     nodeLayer.append(g);
-    nodeEls.push({ el: g, id: n.id });
+    nodeEls.push({ el: g, id: n.id, node: n });
   }
   svg.append(edgeLayer, nodeLayer);
-  const tip = h("div", { class: "mm-tip" }, " ");
   if (interactive) {
+    const onMove = (ev) => {
+      const hit = hitMindNode(svg, nodes, ev);
+      svg.style.cursor = hit ? "pointer" : "default";
+      if (!hit) {
+        hideMindTip();
+        clearMindmapFocus(edgeEls, nodeEls);
+        return;
+      }
+      focusMindmap(hit, nodes, edgeEls, nodeEls);
+      showMindTip(hit, ev);
+    };
+    svg.addEventListener("pointermove", onMove);
+    svg.addEventListener("pointerover", onMove);
     svg.addEventListener("pointerleave", () => {
+      svg.style.cursor = "default";
+      hideMindTip();
       clearMindmapFocus(edgeEls, nodeEls);
-      hideMindTip(host);
+    });
+    svg.addEventListener("click", (ev) => {
+      const hit = hitMindNode(svg, nodes, ev);
+      if (!hit) return;
+      state.graphPick = hit;
+      fillInspector(inspectGraphNode(hit));
     });
   }
-  host.append(svg, tip);
+  host.append(svg);
   window._mmFocus = (n) => focusMindmap(n, nodes, edgeEls, nodeEls);
 }
 
-function showMindTip(host, n, ev) {
-  const tip = host.querySelector(".mm-tip");
-  if (!tip) return;
-  tip.textContent = tipText(n);
-  tip.classList.add("show");
-  const box = host.getBoundingClientRect();
-  const x = Math.min(box.width - 24, Math.max(24, ev.clientX - box.left));
-  const y = Math.max(28, ev.clientY - box.top);
-  tip.style.left = `${x}px`;
-  tip.style.top = `${y}px`;
+function svgCursor(svg, ev) {
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return null;
+  const pt = svg.createSVGPoint();
+  pt.x = ev.clientX;
+  pt.y = ev.clientY;
+  return pt.matrixTransform(ctm.inverse());
 }
 
-function hideMindTip(host) {
-  const tip = host.querySelector(".mm-tip");
+function hitMindNode(svg, nodes, ev) {
+  const p = svgCursor(svg, ev);
+  if (!p) return null;
+  let best = null;
+  let bestD = 1e9;
+  for (const n of nodes) {
+    const d = Math.hypot((n.x || 0) - p.x, (n.y || 0) - p.y);
+    const r = Math.max((n.r || 8) + 22, 30);
+    if (d <= r && d < bestD) {
+      bestD = d;
+      best = n;
+    }
+  }
+  return best;
+}
+
+function showMindTip(n, ev) {
+  let tip = document.getElementById("mm-live-tip");
+  if (!tip) {
+    tip = document.createElement("div");
+    tip.id = "mm-live-tip";
+    tip.className = "mm-tip";
+    document.body.appendChild(tip);
+  }
+  tip.textContent = tipText(n);
+  tip.classList.add("show");
+  const w = tip.offsetWidth || 90;
+  const ht = tip.offsetHeight || 28;
+  tip.style.left = Math.min(window.innerWidth - w - 8, Math.max(8, ev.clientX - w / 2)) + "px";
+  tip.style.top = Math.max(8, ev.clientY - ht - 12) + "px";
+}
+
+function hideMindTip() {
+  const tip = document.getElementById("mm-live-tip");
   if (tip) tip.classList.remove("show");
 }
 
