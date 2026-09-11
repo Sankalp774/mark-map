@@ -23,6 +23,16 @@ def test_brain_graph_has_wikilink_and_q9(tmp_store):
     assert "Q9" in brain["backlinks"]["Linear Equations"]
 
 
+def test_png_meta_works_without_tesseract(tmp_store, monkeypatch):
+    monkeypatch.setattr(ocr, "tesseract_available", lambda: False)
+    path = ocr.generate_ravi_report_png()
+    text, engine = ocr.extract_text(path.read_bytes())
+    assert engine == "png-meta"
+    parsed = ocr.parse_report(text)
+    assert parsed["roll"] == "17"
+    assert parsed["name"] == "Ravi Mehta"
+
+
 def test_screenshot_report_splits_sections(tmp_store):
     path = ocr.generate_ravi_report_png()
     text, engine = ocr.extract_text(path.read_bytes())

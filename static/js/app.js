@@ -13,29 +13,49 @@ const state = {
   loginAgent: null,
   agentStack: false,
   graphPick: null,
+  graphHover: null,
   faqs: [],
   ask: { question: "", answer: null, faq_id: null },
   health: null,
   cheat: "",
 };
 
+const ICONS = {
+  desk: '<svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
+  class: '<svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  student: '<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+  graph: '<svg viewBox="0 0 24 24"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="8" r="2.5"/><circle cx="8" cy="18" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path d="M8 7.5 16 9M7.5 16.2 16.2 10M10 17.5 15.5 17"/></svg>',
+  loop: '<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9"/><path d="M3 4v8h8"/></svg>',
+  requests: '<svg viewBox="0 0 24 24"><path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9Z"/></svg>',
+  calendar: '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>',
+  ingest: '<svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>',
+  map: '<svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6"/><path d="M8 13h8M8 17h5"/></svg>',
+  tasks: '<svg viewBox="0 0 24 24"><path d="M9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>',
+  ask: '<svg viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/></svg>',
+  out: '<svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="m16 17 5-5-5-5"/><path d="M21 12H9"/></svg>',
+};
+
 const TEACHER_NAV = [
-  ["desk", "Overview"],
-  ["class", "Class map"],
-  ["student", "Student"],
-  ["graph", "Local graph"],
-  ["loop", "Class loop"],
-  ["requests", "Requests"],
-  ["calendar", "Calendar"],
-  ["ingest", "Ingest"],
+  ["desk", "Overview", "desk"],
+  ["class", "Class map", "class"],
+  ["student", "Student", "student"],
+  ["graph", "Local graph", "graph"],
+  ["loop", "Class loop", "loop"],
+  ["requests", "Requests", "requests"],
+  ["calendar", "Calendar", "calendar"],
+  ["ingest", "Ingest", "ingest"],
 ];
 const FAMILY_NAV = [
-  ["map", "Report"],
-  ["loop", "Class loop"],
-  ["tasks", "Tasks"],
-  ["calendar", "Calendar"],
-  ["ask", "Ask the desk"],
+  ["map", "Report", "map"],
+  ["loop", "Class loop", "loop"],
+  ["tasks", "Tasks", "tasks"],
+  ["calendar", "Calendar", "calendar"],
+  ["ask", "Ask the desk", "ask"],
 ];
+
+function navIcon(kind) {
+  return h("span", { class: "nav-ic", html: ICONS[kind] || ICONS.desk });
+}
 
 function prettyAudience(audience) {
   const key = String(audience || "").toLowerCase();
@@ -105,6 +125,7 @@ function render() {
   fillNav();
   fillTop();
   fillMain();
+  fillInspector();
   const old = root.querySelector(".toast");
   if (old) old.remove();
   if (state.toast) root.append(h("div", { class: "toast" }, state.toast));
@@ -247,7 +268,7 @@ function agentSky() {
         if (!state.agentStack) state.loginAgent = null;
         render();
       },
-    }, fanned ? "Stack" : "Agents"),
+    }, "Agents"),
     h("div", { class: "mac-pile" }, DESK_AGENTS.map((a, i) => {
       const active = state.loginAgent === a.id;
       return h("button", {
@@ -274,7 +295,7 @@ function agentSky() {
           agentFace(a.face, a.color),
           h("div", { class: "mac-name" }, a.name),
           h("div", { class: "mac-role" }, a.ring),
-          active && h("p", { class: "mac-does" }, a.does),
+          h("p", { class: "mac-does" }, a.does),
         ]),
       ]);
     })),
@@ -284,11 +305,12 @@ function agentSky() {
 function shell() {
   const role = state.me.user.role;
   return h("div", { class: "shell " + role }, [
-    h("aside", { class: "sidenav", id: "sidenav" }),
+    h("aside", { class: "sidenav", id: "sidenav", "aria-label": "Main" }),
     h("div", { class: "workspace" }, [
       h("header", { class: "topbar", id: "topbar" }),
       h("div", { class: "main-pane", id: "main-pane" }),
     ]),
+    h("aside", { class: "inspector-rail", id: "inspector", "aria-label": "Detail" }),
   ]);
 }
 
@@ -300,7 +322,10 @@ function fillNav() {
   const unread = (state.me.workspace || {}).unread || 0;
   nav.innerHTML = "";
   const kids = [
-    h("div", { class: "brand" }, "Mark Map"),
+    h("div", { class: "brand" }, [
+      h("div", { class: "brand-mark" }, "M"),
+      h("div", { class: "brand-text" }, "Mark Map"),
+    ]),
     h("div", { class: "school" }, `${state.me.school?.name || ""} · ${cur.label || cur.id || ""} ${cur.subject || ""}`),
   ];
   if (state.me.user.role === "teacher" && (state.me.classes || []).length) {
@@ -315,15 +340,71 @@ function fillNav() {
       }, `${c.label} · ${c.subject} · ${c.n || 0}`))),
     ]));
   }
-  items.forEach(([id, label]) => {
+  items.forEach(([id, label, icon]) => {
     const badge = id === "loop" && unread ? ` (${unread})` : "";
     kids.push(h("button", {
       class: "navbtn" + (state.nav === id ? " active" : ""),
+      title: label,
       onclick: () => { state.nav = id; render(); },
-    }, label + badge));
+    }, [navIcon(icon), h("span", { class: "nav-label" }, label + badge)]));
   });
-  kids.push(h("button", { class: "navbtn", style: "margin-top:auto", onclick: logout }, "Sign out"));
+  kids.push(h("button", {
+    class: "navbtn",
+    style: "margin-top:auto",
+    title: "Sign out",
+    onclick: logout,
+  }, [navIcon("out"), h("span", { class: "nav-label" }, "Sign out")]));
   nav.append(...kids);
+}
+
+function fillInspector(payload) {
+  const el = document.querySelector("#inspector");
+  if (!el) return;
+  const view = payload || inspectorPayload();
+  el.innerHTML = "";
+  el.append(
+    h("div", { class: "inspect-kicker" }, view.kicker || "Detail"),
+    h("h2", { class: "inspect-title" }, view.title || "Hover a row"),
+    ...(view.body || [h("p", { class: "inspect-empty" }, "Hover a student, alert, or graph node. Click to open the full page.")]),
+  );
+}
+
+function inspectorPayload() {
+  if (state.graphPick) {
+    return {
+      kicker: state.graphPick.kind || "Graph",
+      title: String(state.graphPick.label || "Node").replace(/[\[\]]/g, ""),
+      body: graphInspectorKids(),
+    };
+  }
+  const roll = state.selectedRoll;
+  const row = ((state.classData || {}).roster || []).find((r) => r.roll === roll);
+  if (row) {
+    return {
+      kicker: row.complete ? "Ready" : "Blocked",
+      title: row.name,
+      body: [
+        h("p", { class: "sub" }, `Roll ${row.roll} · ${row.complete ? row.percent + "%" : "brief blocked"}`),
+        h("p", {}, row.complete
+          ? `Weak: ${(row.weak || []).join(", ") || "none"}.`
+          : `Empty cells: ${(row.missing || []).map((x) => x.toUpperCase()).join(", ")}.`),
+        h("div", { class: "row-actions" }, [
+          h("button", { class: "primary", onclick: () => { state.nav = "student"; selectStudent(row.roll); } }, "Open student"),
+        ]),
+      ],
+    };
+  }
+  const k = (state.me && state.me.kpis) || {};
+  return {
+    kicker: "Desk",
+    title: "What needs you",
+    body: [
+      h("p", { class: "inspect-empty" },
+        k.incomplete
+          ? `${k.incomplete} scripts still block briefs. Hover a roster row or run the desk.`
+          : "Hover a student or a graph node. The main page stays still."),
+    ],
+  };
 }
 
 function fillTop() {
@@ -385,6 +466,12 @@ function deskPane() {
   const cycle = (state.me.workspace || {}).desk_cycle;
   const proposals = (state.me.workspace || {}).proposals || [];
   return h("div", { class: "desk-quiet" }, [
+    h("div", { class: "page-head" }, [
+      h("div", {}, [
+        h("h2", {}, "Overview"),
+        h("p", {}, "Load the class, then run the desk. Hover the left rail for pages. Hover a student on the right."),
+      ]),
+    ]),
     h("div", { class: "toolbar" }, [
       btn("Load class (Term 1 + Midterm)", loadDemo, "primary"),
       btn("Read sample screenshot", loadScreenshot, "ghost"),
@@ -581,9 +668,8 @@ function policyCard() {
   ]);
 }
 
-function graphInspectorKids() {
-  const pick = state.graphPick;
-  if (!pick) return [h("div", {}, "Click a question node. Addressing Q9 creates a task for that student. Bonus cannot fill an empty cell.")];
+function graphInspectorKidsFor(pick) {
+  if (!pick) return [h("p", { class: "inspect-empty" }, "Hover Q9. Weak edges stay red. Click to address or add bonus — bonus cannot fill an empty cell.")];
   const kids = [
     h("div", { class: "section-kicker" }, pick.kind),
     h("div", { style: "font-size:18px;margin:6px 0" }, String(pick.label || "").replace(/[\[\]]/g, "")),
@@ -607,6 +693,10 @@ function graphInspectorKids() {
     ]));
   }
   return kids.filter(Boolean);
+}
+
+function graphInspectorKids() {
+  return graphInspectorKidsFor(state.graphPick);
 }
 
 function requestsPane() {
@@ -1018,6 +1108,19 @@ function rosterCard(cls) {
       h("thead", {}, h("tr", {}, ["Roll", "Name", "%", "Weak", "Status"].map((t) => h("th", {}, t)))),
       h("tbody", {}, cls.roster.map((r) => h("tr", {
         class: "clickable" + (state.selectedRoll === r.roll ? " selected" : ""),
+        onmouseenter: () => fillInspector({
+          kicker: r.complete ? "Ready" : "Blocked",
+          title: r.name,
+          body: [
+            h("p", { class: "sub" }, `Roll ${r.roll} · ${r.complete ? r.percent + "%" : "brief blocked"}`),
+            h("p", {}, r.complete
+              ? `Weak: ${(r.weak || []).join(", ") || "none"}.`
+              : `Empty: ${(r.missing || []).map((x) => x.toUpperCase()).join(", ")}.`),
+            h("div", { class: "row-actions" }, [
+              h("button", { class: "primary", onclick: () => { state.selectedRoll = r.roll; state.nav = "student"; selectStudent(r.roll); } }, "Open student"),
+            ]),
+          ],
+        }),
         onclick: () => { state.selectedRoll = r.roll; state.nav = "student"; selectStudent(r.roll); },
       }, [
         h("td", {}, r.roll),
@@ -1182,15 +1285,28 @@ function mountBrain(canvas, graph, interactive = true) {
     ctx.fillStyle = "#0d0f14";
     ctx.fillRect(0, 0, w, h);
     const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
+    const focus = state.graphHover || state.graphPick;
+    const linked = new Set();
+    if (focus) {
+      linked.add(focus.id);
+      for (const e of edges) {
+        if (e.source === focus.id) linked.add(e.target);
+        if (e.target === focus.id) linked.add(e.source);
+      }
+    }
     for (const e of edges) {
       const a = byId[e.source]; const b = byId[e.target];
       if (!a || !b) continue;
-      ctx.strokeStyle = e.kind === "weak" ? "rgba(248,113,113,0.6)" : e.kind === "strong" ? "rgba(74,222,128,0.55)" : "rgba(100,116,139,0.35)";
+      const on = !focus || (linked.has(e.source) && linked.has(e.target));
+      const alpha = on ? 1 : 0.12;
+      ctx.strokeStyle = e.kind === "weak" ? `rgba(248,113,113,${0.6 * alpha})` : e.kind === "strong" ? `rgba(74,222,128,${0.55 * alpha})` : `rgba(100,116,139,${0.35 * alpha})`;
       ctx.lineWidth = e.kind === "weak" || e.kind === "strong" ? 2 : 1;
       ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
     }
     for (const n of nodes) {
-      const picked = state.graphPick && state.graphPick.id === n.id;
+      const picked = (state.graphPick && state.graphPick.id === n.id) || (state.graphHover && state.graphHover.id === n.id);
+      const dim = focus && !linked.has(n.id);
+      ctx.globalAlpha = dim ? 0.22 : 1;
       ctx.beginPath();
       ctx.arc(n.x, n.y, n.r + (picked ? 3 : 0), 0, Math.PI * 2);
       ctx.fillStyle = n.kind === "student" ? "#f59e0b" : n.kind === "paper" ? "#e7e5e4" : n.addressed ? "#38bdf8" : n.band === "weak" ? "#ef4444" : n.band === "strong" ? "#22c55e" : "#60a5fa";
@@ -1198,19 +1314,41 @@ function mountBrain(canvas, graph, interactive = true) {
       ctx.fillStyle = "#e7e5e4";
       ctx.font = "12px IBM Plex Sans, sans-serif";
       ctx.fillText(String(n.label || "").replace(/[\[\]]/g, ""), n.x + 12, n.y + 4);
+      ctx.globalAlpha = 1;
     }
   }
   if (interactive) {
-    canvas.onclick = (ev) => {
+    const hitAt = (ev) => {
       const rect = canvas.getBoundingClientRect();
       const x = (ev.clientX - rect.left) * (canvas.width / rect.width);
       const y = (ev.clientY - rect.top) * (canvas.height / rect.height);
-      const hit = nodes.find((n) => Math.hypot(n.x - x, n.y - y) < n.r + 8);
+      return nodes.find((n) => Math.hypot(n.x - x, n.y - y) < n.r + 10);
+    };
+    canvas.onmousemove = (ev) => {
+      const hit = hitAt(ev);
+      canvas.style.cursor = hit ? "pointer" : "default";
+      if ((hit && hit.id) === (state.graphHover && state.graphHover.id)) return;
+      state.graphHover = hit || null;
       if (hit) {
-        state.graphPick = hit;
-        const host = document.querySelector("#graph-inspector");
-        if (host) { host.innerHTML = ""; graphInspectorKids().forEach((k) => host.append(k)); }
+        fillInspector({
+          kicker: hit.kind,
+          title: String(hit.label || "").replace(/[\[\]]/g, ""),
+          body: graphInspectorKidsFor(hit),
+        });
       }
+    };
+    canvas.onmouseleave = () => { state.graphHover = null; };
+    canvas.onclick = (ev) => {
+      const hit = hitAt(ev);
+      if (!hit) return;
+      state.graphPick = hit;
+      fillInspector({
+        kicker: hit.kind,
+        title: String(hit.label || "").replace(/[\[\]]/g, ""),
+        body: graphInspectorKidsFor(hit),
+      });
+      const host = document.querySelector("#graph-inspector");
+      if (host) { host.innerHTML = ""; graphInspectorKids().forEach((k) => host.append(k)); }
     };
   }
   step();

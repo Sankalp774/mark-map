@@ -23,10 +23,9 @@ MARKMAP_META = "markmap_kind"
 
 def tesseract_available() -> bool:
     try:
-        import pytesseract
         from shutil import which
 
-        return which("tesseract") is not None or bool(pytesseract.get_tesseract_version())
+        return which("tesseract") is not None
     except Exception:
         return False
 
@@ -40,7 +39,11 @@ def extract_text(image_bytes: bytes) -> tuple[str, str]:
         img = img.convert("RGB")
     meta = ""
     if hasattr(img, "text"):
-        meta = (img.text or {}).get(MARKMAP_META) or (img.text or {}).get("markmap_text") or ""
+        blob = img.text or {}
+        meta = blob.get("markmap_text") or ""
+        if not _looks_like_report(meta):
+            alt = blob.get(MARKMAP_META) or ""
+            meta = alt if _looks_like_report(alt) else ""
     ocr = ""
     if tesseract_available():
         try:
@@ -60,12 +63,10 @@ def extract_text(image_bytes: bytes) -> tuple[str, str]:
         except Exception:
             ocr = ""
     text = (ocr or "").strip()
-    meta_text = meta.strip()
-    if meta_text.startswith("kind:"):
-        meta_text = ""
+    meta_text = (meta or "").strip()
     if _looks_like_report(text) and ROLL_RE.search(text) and NAME_RE.search(text):
         return text, "tesseract"
-    if meta_text:
+    if _looks_like_report(meta_text) and ROLL_RE.search(meta_text):
         return meta_text, "png-meta"
     if text:
         return text, "tesseract"
@@ -270,7 +271,7 @@ def generate_ravi_report_png(path: Path | None = None) -> Path:
         draw.text((48, y), line, font=use, fill=fill)
         y += line_h
     info = PngInfo()
-    info.add_text(MARKMAP_META, text)
+    info.add_text("markmap_text", text)
     info.add_text("markmap_kind", "ravi-report")
     path.parent.mkdir(parents=True, exist_ok=True)
     img.save(path, "PNG", pnginfo=info)
