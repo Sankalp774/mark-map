@@ -1463,16 +1463,16 @@ function mountMindmap(host, graph, interactive = true) {
     return;
   }
   const w = interactive ? 900 : 640;
-  const h = interactive ? 480 : 260;
-  const nodes = mindmapLayout(graph, w, h);
+  const vh = interactive ? 480 : 260;
+  const nodes = mindmapLayout(graph, w, vh);
   const byId = Object.fromEntries(nodes.map((n) => [n.id, n]));
   const treeKinds = new Set(["sat", "contains", "asks", "weak", "strong"]);
   const edges = (graph.edges || []).filter((e) => treeKinds.has(e.kind) && byId[e.source] && byId[e.target]);
   const svg = svgEl("svg", {
     class: "mindmap-svg",
-    viewBox: `0 0 ${w} ${h}`,
+    viewBox: `0 0 ${w} ${vh}`,
     width: String(w),
-    height: String(h),
+    height: String(vh),
     preserveAspectRatio: "xMidYMid meet",
     xmlns: "http://www.w3.org/2000/svg",
     role: "img",
