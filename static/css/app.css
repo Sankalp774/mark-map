@@ -1110,6 +1110,124 @@ tr.selected { background: #fff7ed; }
   background: #fffdf8;
   border-bottom: 1px solid var(--line);
 }
+.top-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.proto-badge {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px dashed #c4b5a4;
+  background: #fff7ed;
+  white-space: nowrap;
+}
+.proto-k {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: #9a3412;
+}
+.proto-v {
+  font-size: 12px;
+  color: #57534e;
+}
+.top-pet-slot {
+  width: 0;
+  height: 44px;
+  flex: 0 0 auto;
+}
+.top-pet-slot.on {
+  width: 240px;
+}
+#agent-pet-layer {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+}
+.top-pet {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--c) 45%, var(--line));
+  background: color-mix(in srgb, var(--c) 14%, #fffdf8);
+  border-radius: 16px;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.9) inset,
+    0 12px 28px color-mix(in srgb, var(--c) 28%, rgba(28,25,23,0.18));
+  position: relative;
+  pointer-events: none;
+}
+.top-pet.pop {
+  animation: pet-pop 0.28s cubic-bezier(0.2, 1.4, 0.4, 1) both, pet-bob 0.9s ease-in-out 0.28s infinite;
+}
+.top-pet-lights {
+  position: absolute;
+  top: 4px;
+  left: 10px;
+  display: flex;
+  gap: 3px;
+}
+.top-pet-lights .tl {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: block;
+}
+.top-pet .mac-face {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.45);
+}
+.top-pet .mac-head {
+  width: 22px;
+  height: 22px;
+}
+.top-pet .mac-eye {
+  top: 7px;
+  width: 3px;
+  height: 4px;
+}
+.top-pet .mac-eye:first-child { left: 5px; }
+.top-pet .mac-eye:nth-child(2) { right: 5px; }
+.top-pet .mac-mouth {
+  left: 6px;
+  right: 6px;
+  bottom: 5px;
+  height: 4px;
+}
+.top-pet-copy { line-height: 1.15; padding-top: 6px; }
+.top-pet-file {
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-family: var(--mono, ui-monospace, monospace);
+}
+.top-pet-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #1c1917;
+}
+.top-pet-state {
+  font-size: 11px;
+  color: color-mix(in srgb, var(--c) 70%, #1c1917);
+}
+@keyframes pet-pop {
+  0% { transform: translateY(8px) scale(0.72); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes pet-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
 .kpis {
   display: flex;
   gap: 10px;

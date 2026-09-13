@@ -1,0 +1,17 @@
+{
+  "name": "Mark Map",
+  "image": "mcr.microsoft.com/devcontainers/python:3.13",
+  "postCreateCommand": "pip install -r requirements.txt",
+  "postStartCommand": "python -m markmap",
+  "forwardPorts": [8080],
+  "portsAttributes": {
+    "8080": {
+      "label": "Mark Map",
+      "onAutoForward": "notify"
+    }
+  },
+  "containerEnv": {
+    "MARKMAP_DESK_MODEL": "scripted",
+    "MARKMAP_DISABLE_BEDROCK": "1"
+  }
+}

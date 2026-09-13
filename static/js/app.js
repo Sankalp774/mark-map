@@ -8,6 +8,7 @@ const state = {
   peekRoll: null,
   error: "",
   busy: "",
+  busyAgent: "",
   nav: "desk",
   toast: null,
   shot: null,
@@ -117,6 +118,8 @@ function render() {
   if (!state.me) {
     root.innerHTML = "";
     root.append(loginView());
+    const layer = document.querySelector("#agent-pet-layer");
+    if (layer) layer.remove();
     return;
   }
   if (!root.querySelector(".shell")) {
@@ -128,6 +131,7 @@ function render() {
   fillMain();
   fillInspector();
   attachGlass();
+  syncAgentPet();
   const old = root.querySelector(".toast");
   if (old) old.remove();
   if (state.toast) root.append(h("div", { class: "toast" }, state.toast));
@@ -200,7 +204,7 @@ function loginView() {
   const passInput = h("input", { type: "password", value: "demo" });
   return h("div", { class: "login" }, [
     h("div", { class: "login-card" }, [
-      h("p", { class: "wordmark" }, "Mark Map · Class operations"),
+      h("p", { class: "wordmark" }, "Mark Map · Prototype"),
       h("h1", {}, "The marksheet becomes a live class desk."),
       h("p", { class: "lede" }, "Pick a class. Talk to the room. Parents and students talk back. Briefs still wait for every cell."),
       healthChip(),
@@ -240,7 +244,7 @@ function healthChip() {
     return h("p", { class: "sub" }, "Checking desk…");
   }
   const ocr = hth.ocr === "tesseract" ? "OCR on" : "OCR unavailable";
-  const desk = hth.strands_enabled ? `Strands ${hth.backend || "on"}` : "Strands off";
+  const desk = hth.strands_enabled ? "Prototype" : "Strands off";
   const ev = hth.eval || {};
   return h("div", { class: "health-row" }, [
     h("span", { class: "pill green" }, desk),
@@ -369,7 +373,7 @@ function fillNav() {
     kids.push(h("button", {
       class: "navbtn" + (state.nav === id ? " active" : ""),
       title: label,
-      onclick: () => { state.nav = id; render(); },
+      onclick: () => goNav(id),
     }, [navIcon(icon), h("span", { class: "nav-label" }, label + badge)]));
   });
   kids.push(h("button", {
@@ -381,12 +385,33 @@ function fillNav() {
   nav.append(...kids);
 }
 
+async function goNav(id) {
+  state.nav = id;
+  const byPage = {
+    class: ["mapper", "Class map"],
+    student: ["score", "Student"],
+    graph: ["analyser", "Local graph"],
+    ingest: ["ingest", "Ingest"],
+    map: ["brief", "Report"],
+  };
+  const spec = byPage[id];
+  if (!spec) {
+    render();
+    return;
+  }
+  await runWithAgent(spec[0], spec[1], async () => {
+    if (id === "class" || id === "graph") await refreshClass();
+    if (id === "student" && state.selectedRoll) await selectStudent(state.selectedRoll, true);
+    if (id === "map") await refreshMe();
+  });
+}
+
 function pickStudent(roll) {
   if (!roll) return;
   state.peekRoll = null;
   state.selectedRoll = roll;
   state.nav = "student";
-  selectStudent(roll);
+  runWithAgent("score", "Student", () => selectStudent(roll));
 }
 
 function fillInspector(payload) {
@@ -435,10 +460,7 @@ function fillInspector(payload) {
       class: "glass-hop" + (state.nav === id ? " active" : ""),
       onclick: (e) => {
         e.stopPropagation();
-        state.nav = id;
-        const roll = state.selectedRoll || (current && current.roll);
-        if ((id === "student" || id === "graph" || id === "map") && roll) selectStudent(roll);
-        else render();
+        goNav(id);
       },
     }, label))),
   );
@@ -515,15 +537,102 @@ function inspectorPayload() {
   };
 }
 
+function agentForBusy(busy) {
+  const id = state.busyAgent || "";
+  if (id) return DESK_AGENTS.find((a) => a.id === id) || null;
+  const key = String(busy || "");
+  let fallback = "";
+  if (key === "Run desk" || key === "cheat") fallback = "desk";
+  else if (key.includes("Load class") || key.includes("screenshot") || key === "upload") fallback = "ingest";
+  else if (key.includes("Blank Ravi") || key === "Save mark") fallback = "score";
+  return DESK_AGENTS.find((a) => a.id === fallback) || null;
+}
+
+async function runWithAgent(id, label, fn) {
+  state.busy = label;
+  state.busyAgent = id;
+  state.error = "";
+  const t0 = Date.now();
+  render();
+  try {
+    return await fn();
+  } catch (err) {
+    state.error = err.message;
+    return null;
+  } finally {
+    const long = label === "Run desk" || label === "cheat";
+    const hold = long ? 0 : Math.max(0, 720 - (Date.now() - t0));
+    if (hold) await new Promise((r) => setTimeout(r, hold));
+    state.busy = "";
+    state.busyAgent = "";
+    render();
+  }
+}
+
+function petBrainLabel(agent) {
+  return "Prototype";
+}
+
+function topPet(agent) {
+  return h("div", {
+    class: "top-pet working pop",
+    style: `--c:${agent.color}`,
+    title: "Prototype · " + agent.file,
+  }, [
+    h("span", { class: "top-pet-lights" }, [
+      h("span", { class: "tl red" }),
+      h("span", { class: "tl yellow" }),
+      h("span", { class: "tl green" }),
+    ]),
+    agentFace(agent.face, agent.color),
+    h("div", { class: "top-pet-copy" }, [
+      h("div", { class: "top-pet-file" }, "Prototype · " + agent.file),
+      h("div", { class: "top-pet-name" }, agent.name),
+      h("div", { class: "top-pet-state" }, petBrainLabel(agent)),
+    ]),
+  ]);
+}
+
+function syncAgentPet() {
+  const slot = document.querySelector("#top-pet-slot");
+  let layer = document.querySelector("#agent-pet-layer");
+  const agent = agentForBusy(state.busy);
+  if (!agent || !state.me) {
+    if (layer) layer.remove();
+    return;
+  }
+  if (!layer) {
+    layer = h("div", { id: "agent-pet-layer", "aria-live": "polite" });
+    document.body.append(layer);
+  }
+  layer.innerHTML = "";
+  layer.append(topPet(agent));
+  if (!slot) return;
+  const r = slot.getBoundingClientRect();
+  layer.style.top = Math.max(8, r.top + 2) + "px";
+  layer.style.left = Math.max(12, r.left) + "px";
+}
+
+function protoBadge() {
+  return h("div", { class: "proto-badge", title: "Hackathon prototype" }, [
+    h("span", { class: "proto-k" }, "Prototype"),
+  ]);
+}
+
 function fillTop() {
   const top = document.querySelector("#topbar");
   if (!top) return;
   const k = state.me.kpis || {};
+  const pet = agentForBusy(state.busy);
   top.innerHTML = "";
   top.append(
-    h("div", {}, [
-      h("div", { class: "brand" }, state.me.user.name),
-      h("div", { class: "who" }, state.me.user.email),
+    h("div", { class: "top-left" }, [
+      h("div", {}, [
+        h("div", { class: "brand" }, state.me.user.name),
+        h("div", { class: "who" }, state.me.user.email),
+      ]),
+      protoBadge(),
+      h("div", { id: "top-pet-slot", class: "top-pet-slot" + (pet ? " on" : "") }),
     ]),
     h("div", { class: "kpis" }, [
       h("div", { class: "kpi" }, [h("div", { class: "k" }, "Ready"), h("div", { class: "v" }, k.n ? `${k.ready}/${k.n}` : "—")]),
@@ -621,9 +730,9 @@ function deskPane() {
         h("h3", {}, "Live operations"),
         h("p", { class: "sub" }, "The desk proposes. You approve. Students get the task. Next paper measures the outcome."),
         h("div", { class: "row-actions" }, [
-          h("button", { class: "ghost", onclick: () => { state.nav = "requests"; render(); } }, "Requests"),
-          h("button", { class: "ghost", onclick: () => { state.nav = "graph"; render(); } }, "Local graph"),
-          h("button", { class: "ghost", onclick: () => { state.nav = "ingest"; render(); } }, "Screenshot ingest"),
+          h("button", { class: "ghost", onclick: () => goNav("requests") }, "Requests"),
+          h("button", { class: "ghost", onclick: () => goNav("graph") }, "Local graph"),
+          h("button", { class: "ghost", onclick: () => goNav("ingest") }, "Screenshot ingest"),
         ]),
       ]),
       h("div", { class: "card" }, [
@@ -680,10 +789,11 @@ function ptmCard() {
       onsubmit: async (e) => {
         e.preventDefault();
         try {
-          await api("/api/desk/ptm", { method: "POST", json: { ptm_at: input.value } });
-          await refreshMe();
-          toast("PTM time updated.");
-          render();
+          await runWithAgent("desk", "Set PTM", async () => {
+            await api("/api/desk/ptm", { method: "POST", json: { ptm_at: input.value } });
+            await refreshMe();
+            toast("PTM time updated.");
+          });
         } catch (err) { state.error = err.message; render(); }
       },
     }, [input, h("button", { class: "ghost", type: "submit" }, "Set PTM")]),
@@ -700,14 +810,12 @@ function cheatCard() {
       class: "form-grid",
       onsubmit: async (e) => {
         e.preventDefault();
-        state.busy = "cheat";
-        render();
-        try {
-          const data = await api("/api/desk/run", { method: "POST", json: { prompt: input.value } });
+        const data = await runWithAgent("desk", "cheat", async () => {
+          const out = await api("/api/desk/run", { method: "POST", json: { prompt: input.value } });
           await refreshMe();
-          toast((data.refused && data.refused.length) ? "Refused — cell unchanged." : (data.summary || "Desk ran."));
-        } catch (err) { state.error = err.message; }
-        finally { state.busy = ""; render(); }
+          return out;
+        });
+        if (data) toast((data.refused && data.refused.length) ? "Refused — cell unchanged." : (data.summary || "Desk ran."));
       },
     }, [input, h("button", { class: "ghost", type: "submit" }, "Ask the agent")]),
   ]);
@@ -973,9 +1081,7 @@ function ingestPane() {
           if (!file.files[0]) { state.error = "Choose a PNG or JPEG of the report."; render(); return; }
           const fd = new FormData();
           fd.append("shot", file.files[0]);
-          state.busy = "upload";
-          render();
-          try {
+          await runWithAgent("ingest", "upload", async () => {
             const res = await fetch("/api/ingest/screenshot", { method: "POST", body: fd, credentials: "include" });
             const data = await res.json().catch(() => ({}));
             if (!res.ok) throw new Error(errText(data, "Screenshot failed"));
@@ -987,14 +1093,9 @@ function ingestPane() {
               await refreshMe();
               toast(`Report read via ${data.engine}.`);
             } else {
-              state.error = data.error || "Could not parse this image.";
+              throw new Error(data.error || "Could not parse this image.");
             }
-          } catch (err) {
-            state.error = err.message;
-          } finally {
-            state.busy = "";
-            render();
-          }
+          });
         },
       }, [
         h("p", {}, "Drop a photo or screenshot of a student report"),
@@ -1157,17 +1258,14 @@ async function ackBroadcast(id) {
 }
 
 async function switchClass(id) {
-  try {
+  await runWithAgent("ingest", "Class", async () => {
     await api("/api/class/select", { method: "POST", json: { class_id: id } });
     state.classData = null;
     state.student = null;
     state.paperId = id === "10-B" ? "midterm" : `${id}:midterm`;
     await boot();
     toast(`Now in ${id}.`);
-  } catch (err) {
-    state.error = err.message;
-    render();
-  }
+  });
 }
 
 function askPane() {
@@ -1249,9 +1347,10 @@ function chapterEditor(paperId, q) {
     value: q.chapter,
     style: "width:160px;padding:4px 8px;border:1px solid var(--line);border-radius:8px",
     onchange: async (e) => {
-      await api(`/api/papers/${paperId}/questions/${q.id}`, { method: "PATCH", json: { chapter: e.target.value } });
-      await refreshClass();
-      render();
+      await runWithAgent("mapper", "Chapter", async () => {
+        await api(`/api/papers/${paperId}/questions/${q.id}`, { method: "PATCH", json: { chapter: e.target.value } });
+        await refreshClass();
+      });
     },
   });
 }
@@ -1643,10 +1742,7 @@ function btn(label, fn, cls) {
 }
 
 async function loadDemo() {
-  state.busy = "Load class (Term 1 + Midterm)";
-  state.error = "";
-  render();
-  try {
+  await runWithAgent("ingest", "Load class (Term 1 + Midterm)", async () => {
     const data = await api("/api/demo/midterm2", { method: "POST" });
     state.classData = data.class;
     state.paperId = "midterm";
@@ -1655,20 +1751,12 @@ async function loadDemo() {
     await selectStudent("17", true);
     await refreshMe();
     toast("Term 1 and Midterm are on the desk.");
-  } catch (err) {
-    state.error = err.message;
-  } finally {
-    state.busy = "";
-    render();
-  }
+  });
 }
 
 async function loadScreenshot() {
-  state.busy = "Read sample screenshot";
-  state.error = "";
   state.nav = "ingest";
-  render();
-  try {
+  await runWithAgent("ingest", "Read sample screenshot", async () => {
     const data = await api("/api/demo/screenshot", { method: "POST" });
     state.shot = data;
     if (data.class) state.classData = data.class;
@@ -1677,43 +1765,27 @@ async function loadScreenshot() {
     if (data.ok) await selectStudent(state.selectedRoll, true);
     await refreshMe();
     toast(data.ok ? `Screenshot read via ${data.engine_label || data.engine}. Term 1 and Midterm split.` : (data.error || "Parse failed"));
-  } catch (err) {
-    state.error = err.message;
-  } finally {
-    state.busy = "";
-    render();
-  }
+  });
 }
 
 async function runDesk() {
-  state.busy = "Run desk";
-  render();
-  try {
+  await runWithAgent("desk", "Run desk", async () => {
     await api("/api/desk/run", { method: "POST", json: {} });
     await refreshMe();
     toast("Desk ran through tools.");
-  } catch (err) {
-    state.error = err.message;
-  } finally {
-    state.busy = "";
-    render();
-  }
+  });
 }
 
 async function approveIntervention(id) {
-  try {
+  await runWithAgent("desk", "Approve", async () => {
     const data = await api("/api/workspace/intervention/approve", { method: "POST", json: { intervention_id: id } });
     state.me.workspace = data.workspace;
     toast("Intervention approved. Students have the task.");
-    render();
-  } catch (err) {
-    state.error = err.message;
-    render();
-  }
+  });
 }
 
 async function addressNode(pick) {
-  try {
+  await runWithAgent("analyser", "Address", async () => {
     const data = await api("/api/workspace/address", {
       method: "POST",
       json: { paper_id: state.paperId, roll: state.selectedRoll, question_id: pick.question_id },
@@ -1722,15 +1794,11 @@ async function addressNode(pick) {
     state.me.workspace = data.workspace;
     toast(`Addressed ${pick.label}. Task sent to the student.`);
     state.graphPick = { ...pick, addressed: true };
-    render();
-  } catch (err) {
-    state.error = err.message;
-    render();
-  }
+  });
 }
 
 async function bonusNode(pick, extra) {
-  try {
+  await runWithAgent("score", "Bonus", async () => {
     const data = await api("/api/workspace/bonus", {
       method: "POST",
       json: { paper_id: state.paperId, roll: state.selectedRoll, question_id: pick.question_id, extra },
@@ -1738,11 +1806,7 @@ async function bonusNode(pick, extra) {
     state.student = data.student;
     state.classData = data.class;
     toast(`Bonus +${extra} on ${pick.label}. Empty cells were not filled.`);
-    render();
-  } catch (err) {
-    state.error = err.message;
-    render();
-  }
+  });
 }
 
 async function sendBroadcast(e, audience, title, body) {
@@ -1772,12 +1836,13 @@ async function sendTask(e, rollSel, title, body) {
 }
 
 async function switchSection(id) {
-  state.paperId = id;
-  await refreshClass();
-  if (state.selectedRoll) {
-    try { await selectStudent(state.selectedRoll, true); } catch (_) {}
-  }
-  render();
+  await runWithAgent("analyser", "Section", async () => {
+    state.paperId = id;
+    await refreshClass();
+    if (state.selectedRoll) {
+      try { await selectStudent(state.selectedRoll, true); } catch (_) {}
+    }
+  });
 }
 
 async function selectStudent(roll, quiet) {
@@ -1842,9 +1907,7 @@ async function loadHealth() {
 }
 
 async function blankRavi() {
-  state.busy = "Blank Ravi Q9";
-  render();
-  try {
+  await runWithAgent("score", "Blank Ravi Q9", async () => {
     const data = await api("/api/demo/ravi-q9-blank", { method: "POST" });
     state.student = data;
     state.selectedRoll = "17";
@@ -1853,30 +1916,31 @@ async function blankRavi() {
     await refreshClass();
     await refreshMe();
     toast("Ravi Q9 is empty. Briefs blocked.");
-  } catch (err) { state.error = err.message; }
-  finally { state.busy = ""; render(); }
+  });
 }
 
 async function fillCell(paperId, roll, questionId, value) {
-  try {
-    const data = await api(`/api/papers/${paperId}/students/${roll}/cells/${questionId}`, {
+  const data = await runWithAgent("score", "Save mark", async () => {
+    const out = await api(`/api/papers/${paperId}/students/${roll}/cells/${questionId}`, {
       method: "PATCH",
       json: { value: Number(value) },
     });
-    state.student = data;
-    if (data.class) state.classData = data.class;
+    state.student = out;
+    if (out.class) state.classData = out.class;
+    return out;
+  });
+  if (!data) return;
+  await runWithAgent("brief", "Briefs", async () => {
     await refreshMe();
     toast(data.briefs && data.briefs.blocked ? "Saved. Brief still blocked." : "Saved. Briefs recomputed.");
-    render();
-  } catch (err) { state.error = err.message; render(); }
+  });
 }
 
 async function resetDemo() {
-  try {
+  await runWithAgent("ingest", "Reset", async () => {
     await fetch("/api/demo/reset", { method: "POST", credentials: "include" });
     toast("Demo class reset.");
-  } catch (err) { state.error = err.message; }
-  render();
+  });
 }
 
 async function boot() {
@@ -1912,3 +1976,6 @@ function fmt(n) {
 }
 
 boot();
+window.addEventListener("resize", () => {
+  if (state.busy) syncAgentPet();
+});
