@@ -12,11 +12,12 @@ Browser (teacher / student / parent)
         │     desk.py      incomplete scripts + PTM window
         │     data/markmap.json
         │
-        └── Strands desk agent  (always — scripted local model, or Bedrock)
+        └── Strands desk agent  (always — scripted, LM Studio / Ollama, or Bedrock)
               Agent(...) calls @tools:
                 list_incomplete_rows → class_hotspots
                 → write_student_briefs → run_desk_nags
-              scripted-desk  or  Amazon Bedrock Claude Sonnet
+              scripted-desk  or  local OpenAI-compatible LLM  or  Amazon Bedrock
+              (Bedrock invoke is currently unauthorized by AWS on this account)
 ```
 
 **Rule:** a desk run happens only because the agent called tools. Python owns marks, completeness, and “do not publish.” The model does not recap a cycle Python already finished.

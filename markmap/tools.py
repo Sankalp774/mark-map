@@ -170,11 +170,7 @@ def health() -> dict[str, Any]:
         "strands_sdk": _strands_importable(),
         "strands_enabled": config.strands_enabled(),
         "backend": config.model_backend() if config.strands_enabled() else None,
-        "model": (
-            config.BEDROCK_MODEL_ID
-            if config.model_backend() == "bedrock"
-            else "scripted-desk" if config.strands_enabled() else None
-        ),
+        "model": config.desk_model_id() if config.strands_enabled() else None,
         "region": config.AWS_REGION,
         "ocr": "tesseract" if _ocr_ready() else "unavailable",
         "eval": _eval_snapshot(),

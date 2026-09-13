@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from . import config, store, tools
@@ -36,7 +37,8 @@ DESK_TOOLS = [
 
 
 def _model():
-    if config.model_backend() == "bedrock":
+    backend = config.model_backend()
+    if backend == "bedrock":
         from strands.models import BedrockModel
 
         return BedrockModel(
@@ -44,6 +46,33 @@ def _model():
             region_name=config.AWS_REGION,
             temperature=0.2,
             streaming=False,
+        )
+    if backend == "ollama":
+        from strands.models.ollama import OllamaModel
+
+        return OllamaModel(
+            host=config.OLLAMA_HOST,
+            model_id=config.OLLAMA_MODEL_ID,
+            temperature=0.2,
+        )
+    if backend == "mlx":
+        if config.omlx_endpoint_up():
+            from strands.models.openai import OpenAIModel
+
+            return OpenAIModel(
+                client_args={
+                    "api_key": os.getenv("MARKMAP_MLX_API_KEY", "local"),
+                    "base_url": config.MLX_BASE_URL,
+                },
+                model_id=config.MLX_MODEL_ID,
+                params={"temperature": 0.2, "max_tokens": 1024},
+            )
+        from strands.models.ollama import OllamaModel
+
+        return OllamaModel(
+            host=config.OLLAMA_HOST,
+            model_id=config.OLLAMA_MODEL_ID,
+            temperature=0.2,
         )
     from .scripted import ScriptedDeskModel
 
@@ -108,7 +137,7 @@ def run_desk_agent(prompt: str | None = None, class_id: str | None = None) -> di
         "tools_called": called,
         "refused": last["refused"],
         "last_run": last,
-        "model": config.BEDROCK_MODEL_ID if backend == "bedrock" else "scripted-desk",
+        "model": config.desk_model_id(backend),
     }
 
 

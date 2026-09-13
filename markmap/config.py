@@ -22,6 +22,10 @@ CLASS_COOKIE = "markmap_class"
 
 AWS_REGION = os.getenv("AWS_REGION") or os.getenv("AWS_DEFAULT_REGION") or "us-west-2"
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "us.anthropic.claude-sonnet-4-6")
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
+OLLAMA_MODEL_ID = os.getenv("MARKMAP_OLLAMA_MODEL", "llama3.2")
+MLX_BASE_URL = os.getenv("MARKMAP_MLX_BASE_URL", "http://127.0.0.1:8000/v1").rstrip("/")
+MLX_MODEL_ID = os.getenv("MARKMAP_MLX_MODEL", "llama-3.2-3b-instruct")
 
 DEMO_PASSWORD = "demo"
 
@@ -93,13 +97,66 @@ def aws_credentials_present() -> bool:
     return cred.exists()
 
 
-def model_backend() -> str:
+def ollama_available() -> bool:
+    try:
+        from urllib.request import urlopen
+
+        with urlopen(OLLAMA_HOST.rstrip("/") + "/api/tags", timeout=0.4) as resp:
+            return 200 <= getattr(resp, "status", 200) < 300
+    except Exception:
+        return False
+
+
+def omlx_endpoint_up() -> bool:
+    if not MLX_BASE_URL:
+        return False
+    try:
+        from urllib.request import Request, urlopen
+
+        req = Request(MLX_BASE_URL + "/models", headers={"Authorization": "Bearer local"})
+        with urlopen(req, timeout=0.4) as resp:
+            return 200 <= getattr(resp, "status", 200) < 300
+    except Exception:
+        return False
+
+
+def mlx_available() -> bool:
+    return omlx_endpoint_up() or ollama_available()
+
+
+def requested_backend() -> str:
     forced = (os.getenv("MARKMAP_DESK_MODEL") or "").strip().lower()
-    if forced in {"scripted", "bedrock"}:
+    if forced == "local":
+        return "ollama" if ollama_available() else ("mlx" if mlx_available() else "scripted")
+    if forced in {"scripted", "bedrock", "ollama", "mlx"}:
         return forced
+    if ollama_available() and os.getenv("MARKMAP_PREFER_LOCAL", "0") == "1":
+        return "ollama"
+    if mlx_available() and os.getenv("MARKMAP_PREFER_LOCAL", "0") == "1":
+        return "mlx"
     if bedrock_disabled() or not aws_credentials_present():
         return "scripted"
     return "bedrock"
+
+
+def model_backend() -> str:
+    wanted = requested_backend()
+    if wanted == "ollama" and not ollama_available():
+        return "scripted"
+    if wanted == "mlx" and not mlx_available():
+        return "scripted"
+    return wanted
+
+
+def desk_model_id(backend: str | None = None) -> str:
+    backend = backend or model_backend()
+    if backend == "bedrock":
+        return BEDROCK_MODEL_ID
+    if backend == "ollama":
+        return OLLAMA_MODEL_ID
+    if backend == "mlx":
+        return MLX_MODEL_ID if omlx_endpoint_up() else OLLAMA_MODEL_ID
+    return "scripted-desk"
 
 
 def require_production_secret() -> None:

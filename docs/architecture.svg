@@ -8,7 +8,7 @@
   <text x="276" y="122" font-size="13" fill="#1c1917">FastAPI</text>
   <rect x="488" y="48" width="200" height="136" rx="16" fill="#ecfeff" stroke="#67e8f9"/>
   <text x="504" y="84" font-size="13" font-weight="600" fill="#1c1917">Strands desk Agent</text>
-  <text x="504" y="108" font-size="12" fill="#57534e">scripted-desk or Bedrock</text>
+  <text x="504" y="108" font-size="12" fill="#57534e">scripted, LM Studio, or Bedrock</text>
   <text x="504" y="128" font-size="12" fill="#57534e">list_incomplete_rows</text>
   <text x="504" y="146" font-size="12" fill="#57534e">write_student_briefs</text>
   <text x="504" y="164" font-size="12" fill="#57534e">run_desk_nags</text>
