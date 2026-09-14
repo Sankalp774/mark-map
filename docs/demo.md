@@ -1,5 +1,7 @@
 # Demo — six beats
 
+Video: [https://www.youtube.com/watch?v=mY93KqHv7S0](https://www.youtube.com/watch?v=mY93KqHv7S0)
+
 Password `demo` for every door.
 
 1. **Teacher** `teacher@markmap.demo` → **Load class (Term 1 + Midterm)**.

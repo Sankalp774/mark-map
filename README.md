@@ -8,6 +8,8 @@ A class operations desk. Paper + marks in. Chapter map and two briefs out. Empty
 
 Named desk: **Kavita Sharma**, Class 10-B Mathematics, Greenfield Public School. Named student: **Ravi Mehta**.
 
+**Demo video:** [https://www.youtube.com/watch?v=mY93KqHv7S0](https://www.youtube.com/watch?v=mY93KqHv7S0)
+
 ## Guardrails
 
 - Empty / `NA` / `-` is **missing**, not zero
@@ -116,7 +118,6 @@ Cron / EventBridge: `POST /api/desk/sweep` with header `X-Markmap-Secret`.
 - Demo accounts only. Set `MARKMAP_SECRET` and `MARKMAP_ENV=production` before a public listen
 - Store is one JSON file (atomic replace). A hosted demo is ephemeral unless you mount a volume
 - No GitHub Pages live desk (Pages is static-only). Codespaces or local `make demo` is the hosted path
-- Demo video: not published yet
 
 ## Architecture
 
