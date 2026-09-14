@@ -2,7 +2,7 @@
 
 Account: `966132822353`. Region: **us-west-2**. Intended model: `us.anthropic.claude-sonnet-4-6` or on-demand Nova (`amazon.nova-lite-v1:0` / `amazon.nova-2-lite-v1:0`).
 
-**Current blocker (2026-09-14):** this account is **not authorized** to invoke Bedrock. `get-foundation-model-availability` returns `authorizationStatus: NOT_AUTHORIZED`. `converse` returns `ValidationException: Operation not allowed` for Nova, Llama, Mistral, and Claude, in every Region we tried. IAM is not the issue (tested as root). Until AWS Support flips the account to `AUTHORIZED`, run the desk locally (`MARKMAP_DESK_MODEL=mlx` → LM Studio, or `scripted` for tests). Do **not** create App Runner while health is not `"backend":"bedrock"`.
+**Current blocker (2026-09-14):** this account is **not authorized** to invoke Bedrock. `get-foundation-model-availability` returns `authorizationStatus: NOT_AUTHORIZED`. `converse` returns `ValidationException: Operation not allowed` for Nova, Llama, Mistral, and Claude, in every Region we tried. IAM is not the issue (tested as root). Until AWS Support flips the account to `AUTHORIZED`, run the desk locally (`MARKMAP_DESK_MODEL=mlx` → LM Studio, or `desk` for tests). Do **not** create App Runner while health is not `"backend":"bedrock"`.
 
 Do the phases in order after that hold lifts.
 
@@ -66,7 +66,7 @@ curl -s http://127.0.0.1:8080/api/health
 ```
 
 You want `"backend":"bedrock"` and `"model":"us.anthropic.claude-sonnet-4-6"`.  
-If it still says `scripted`, the keys are missing or `MARKMAP_DISABLE_BEDROCK=1`.
+If it still says `desk`, the keys are missing or `MARKMAP_DISABLE_BEDROCK=1`.
 
 Then in the app: teacher door → Load class → **Run desk**. Desk log should mention `desk_orchestrator` and the Bedrock model. First call can take 10–20s.
 
@@ -143,7 +143,7 @@ Put that URL on the Devpost submission as the live demo.
 
 | Symptom | Likely cause |
 |---|---|
-| `backend: scripted` | No keys / role, or `MARKMAP_DISABLE_BEDROCK=1` |
+| `backend: desk` | No keys / role, or `MARKMAP_DISABLE_BEDROCK=1` |
 | `AccessDeniedException` on Run desk | Model access not granted, or IAM policy missing inference-profile |
 | `ValidationException` / unknown model | Wrong `BEDROCK_MODEL_ID` for this account; pick the ID from the Bedrock console |
 | App Runner build fail | Dockerfile needs Docker configuration, not Python runtime |

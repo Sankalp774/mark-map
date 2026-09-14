@@ -10,4 +10,4 @@ Three views, one product:
 
 Invariant: empty ≠ 0. The teacher still fills the yellow cell. A desk run exists only because tools ran.
 
-The published demo uses this same loop with a scripted model until AWS authorizes Bedrock invoke.
+The published demo uses this same loop with the built-in desk model until AWS authorizes Bedrock invoke.

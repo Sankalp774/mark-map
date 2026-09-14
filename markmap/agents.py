@@ -74,9 +74,9 @@ def _model():
             model_id=config.OLLAMA_MODEL_ID,
             temperature=0.2,
         )
-    from .scripted import ScriptedDeskModel
+    from .desk_model import DeskModel
 
-    return ScriptedDeskModel()
+    return DeskModel()
 
 
 def build_desk():

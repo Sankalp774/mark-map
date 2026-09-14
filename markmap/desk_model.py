@@ -16,12 +16,12 @@ from strands.types.tools import ToolChoice, ToolSpec
 from . import config
 
 
-class ScriptedDeskModel(Model):
-    """Deterministic stand-in for Bedrock. Same tool sequence the live desk uses."""
+class DeskModel(Model):
+    """Built-in Strands desk model. Same tool sequence the live desk uses."""
 
     def __init__(self) -> None:
         self._config: dict[str, Any] = {
-            "model_id": "scripted-desk",
+            "model_id": "desk",
             "context_window_limit": 32000,
         }
 
@@ -34,7 +34,7 @@ class ScriptedDeskModel(Model):
     async def structured_output(self, output_model, prompt, system_prompt=None, **kwargs):
         if False:  # pragma: no cover
             yield {}
-        raise NotImplementedError("scripted desk model has no structured output")
+        raise NotImplementedError("desk model has no structured output")
 
     def stream(
         self,
@@ -167,7 +167,7 @@ def _closing_line(messages: Messages) -> str:
 async def _tools(calls: list[tuple[str, dict[str, Any]]]) -> AsyncGenerator[StreamEvent, None]:
     yield {"messageStart": {"role": "assistant"}}
     for index, (name, args) in enumerate(calls):
-        tool_id = f"scripted-{name}-{index}-{uuid.uuid4().hex[:8]}"
+        tool_id = f"desk-{name}-{index}-{uuid.uuid4().hex[:8]}"
         yield {
             "contentBlockStart": {
                 "start": {"toolUse": {"toolUseId": tool_id, "name": name}},

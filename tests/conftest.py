@@ -11,9 +11,9 @@ def tmp_store(tmp_path, monkeypatch):
     path = tmp_path / "markmap.json"
     monkeypatch.setattr(config, "STORE_PATH", path)
     monkeypatch.setenv("MARKMAP_DISABLE_BEDROCK", "1")
-    monkeypatch.setenv("MARKMAP_DESK_MODEL", "scripted")
+    monkeypatch.setenv("MARKMAP_DESK_MODEL", "desk")
     monkeypatch.setattr(config, "bedrock_disabled", lambda: True)
-    monkeypatch.setattr(config, "model_backend", lambda: "scripted")
+    monkeypatch.setattr(config, "model_backend", lambda: "desk")
     seed.reset_store()
     from markmap import workspace
 

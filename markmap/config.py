@@ -127,24 +127,24 @@ def mlx_available() -> bool:
 def requested_backend() -> str:
     forced = (os.getenv("MARKMAP_DESK_MODEL") or "").strip().lower()
     if forced == "local":
-        return "ollama" if ollama_available() else ("mlx" if mlx_available() else "scripted")
-    if forced in {"scripted", "bedrock", "ollama", "mlx"}:
+        return "ollama" if ollama_available() else ("mlx" if mlx_available() else "desk")
+    if forced in {"desk", "bedrock", "ollama", "mlx"}:
         return forced
     if ollama_available() and os.getenv("MARKMAP_PREFER_LOCAL", "0") == "1":
         return "ollama"
     if mlx_available() and os.getenv("MARKMAP_PREFER_LOCAL", "0") == "1":
         return "mlx"
     if bedrock_disabled() or not aws_credentials_present():
-        return "scripted"
+        return "desk"
     return "bedrock"
 
 
 def model_backend() -> str:
     wanted = requested_backend()
     if wanted == "ollama" and not ollama_available():
-        return "scripted"
+        return "desk"
     if wanted == "mlx" and not mlx_available():
-        return "scripted"
+        return "desk"
     return wanted
 
 
@@ -156,7 +156,7 @@ def desk_model_id(backend: str | None = None) -> str:
         return OLLAMA_MODEL_ID
     if backend == "mlx":
         return MLX_MODEL_ID if omlx_endpoint_up() else OLLAMA_MODEL_ID
-    return "scripted-desk"
+    return "desk"
 
 
 def require_production_secret() -> None:

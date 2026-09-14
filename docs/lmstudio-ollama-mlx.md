@@ -4,7 +4,7 @@ The desk is always a **Strands** `Agent`. These backends only change the model. 
 
 `GET /api/health` must show `"backend":"mlx"` or `"backend":"ollama"` before you expect tokens in LM Studio / Ollama.
 
-If the local server is down, Mark Map **falls back to scripted**. That is intentional.
+If the local server is down, Mark Map **falls back to the built-in desk model**. That is intentional.
 
 Prefer a small **instruct** model (Llama 3.2 3B, Qwen 2.5 Instruct). Skip reasoning models (R1) for Run desk.
 
@@ -97,6 +97,6 @@ If that URL is down, `MARKMAP_DESK_MODEL=mlx` uses **Ollama** when it is running
 |---|---|
 | `MARKMAP_DESK_MODEL=mlx` | `strands.models.openai.OpenAIModel` if `/v1/models` answers; else `OllamaModel` |
 | `MARKMAP_DESK_MODEL=ollama` | `strands.models.ollama.OllamaModel` |
-| `MARKMAP_DESK_MODEL=scripted` | `ScriptedDeskModel` (demo / tests / Docker) |
+| `MARKMAP_DESK_MODEL=desk` | `DeskModel` (demo / tests / Docker) |
 
 Bedrock is a **separate** file: [bedrock.md](bedrock.md).

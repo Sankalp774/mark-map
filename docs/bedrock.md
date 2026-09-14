@@ -59,4 +59,4 @@ Health must show `"backend":"bedrock"` before App Runner. Hosting steps: [deploy
 
 ## Honest status
 
-Until AWS authorizes invoke, the published demo uses **scripted** (same tools). Optional laptop brains: [lmstudio-ollama-mlx.md](lmstudio-ollama-mlx.md). Do not fabricate a Bedrock trace.
+Until AWS authorizes invoke, the published demo uses the built-in desk model (same tools). Optional laptop brains: [lmstudio-ollama-mlx.md](lmstudio-ollama-mlx.md). Do not fabricate a Bedrock trace.

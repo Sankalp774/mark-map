@@ -11,7 +11,7 @@
     }
   },
   "containerEnv": {
-    "MARKMAP_DESK_MODEL": "scripted",
+    "MARKMAP_DESK_MODEL": "desk",
     "MARKMAP_DISABLE_BEDROCK": "1"
   }
 }

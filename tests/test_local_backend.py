@@ -4,8 +4,8 @@ from markmap import config
 def test_forced_ollama_falls_back_when_daemon_down(monkeypatch):
     monkeypatch.setenv("MARKMAP_DESK_MODEL", "ollama")
     monkeypatch.setattr(config, "ollama_available", lambda: False)
-    assert config.model_backend() == "scripted"
-    assert config.desk_model_id("scripted") == "scripted-desk"
+    assert config.model_backend() == "desk"
+    assert config.desk_model_id("desk") == "desk"
 
 
 def test_forced_ollama_when_up(monkeypatch):
@@ -22,4 +22,4 @@ def test_mlx_alias_without_server_falls_back(monkeypatch):
     monkeypatch.setenv("MARKMAP_DESK_MODEL", "mlx")
     monkeypatch.setattr(config, "mlx_available", lambda: False)
     monkeypatch.setattr(config, "ollama_available", lambda: False)
-    assert config.model_backend() == "scripted"
+    assert config.model_backend() == "desk"

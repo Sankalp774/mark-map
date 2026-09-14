@@ -24,7 +24,7 @@ Named desk: **Kavita Sharma**, Class 10-B Mathematics, Greenfield Public School.
 
 Python 3.10+. Tesseract is optional (`brew install tesseract`).
 
-One-click on GitHub: [Open in Codespaces](https://codespaces.new/Sankalp774/mark-map) — scripted desk on port 8080. GitHub Pages cannot run this API.
+One-click on GitHub: [Open in Codespaces](https://codespaces.new/Sankalp774/mark-map) — desk on port 8080. GitHub Pages cannot run this API.
 
 ```bash
 python3 -m venv .venv
@@ -67,28 +67,27 @@ Live list: `GET /api/policy`. Teacher can grant a denied action from Overview (*
 
 `write_mark`, `unlock_brief`, and `set_question_chapter` are cancelled by a `BeforeToolCall` hook before they run. The teacher fills a yellow empty cell on the Student pane (`PATCH /api/papers/{id}/students/{roll}/cells/{qid}`).
 
-The same Strands loop can use three brains. The **published demo** (this repo, Docker, GitHub Codespaces) uses **scripted** so Run desk is instant. Tests always use scripted.
+The same Strands loop can use several brains. The **published demo** (this repo, Docker, GitHub Codespaces) uses the built-in **desk** model.
 
 | `MARKMAP_DESK_MODEL` | Brain |
 |---|---|
-| `scripted` | Deterministic Strands model (same tools; no LLM wait) |
+| `desk` | Built-in Strands desk model |
 | `mlx` | LM Studio / oMLX / OpenAI-compatible local server (optional on a laptop) |
 | `ollama` | Ollama on `:11434` |
 | `bedrock` | Claude or Nova on Amazon Bedrock (`BedrockModel`) |
 
 ```bash
 cp .env.example .env
-# Default is scripted. To use a local LLM later:
 # MARKMAP_DESK_MODEL=mlx
 ```
 
-`GET /api/health` reports `backend` and `model`. GitHub **Pages cannot host this app** (it is FastAPI, not a static site). Use `make demo` locally, `docker build`, or **[Open in GitHub Codespaces](https://codespaces.new/Sankalp774/mark-map)** (port 8080, scripted).
+`GET /api/health` reports `backend` and `model`. GitHub **Pages cannot host this app** (it is FastAPI, not a static site). Use `make demo` locally, `docker build`, or **[Open in GitHub Codespaces](https://codespaces.new/Sankalp774/mark-map)** (port 8080).
 
 Switch brains (same Strands tools):
 
 | | Doc | Script |
 |---|---|---|
-| Scripted (demo) | — | `./scripts/run-scripted.sh` |
+| Desk (demo) | — | `./scripts/run-desk.sh` |
 | LM Studio / oMLX | [docs/lmstudio-ollama-mlx.md](docs/lmstudio-ollama-mlx.md) | `./scripts/run-lmstudio.sh` |
 | Ollama (MLX on Apple silicon) | same | `./scripts/run-ollama.sh` |
 | Amazon Bedrock | [docs/bedrock.md](docs/bedrock.md) | `./scripts/run-bedrock.sh` |
@@ -106,7 +105,7 @@ ValidationException: Operation not allowed
 
 That is an **account-level Bedrock authorization hold**, not a missing IAM policy and not a missing model-access tick. We checked Amazon Nova Micro/Lite/2 Lite, Llama 3, Mistral, and Claude Sonnet 4.6 in us-east-1, us-west-2, ap-south-2, ap-southeast-1, and eu-west-1. Models **list**. **Converse / InvokeModel fail.** Root credentials do not change it. A Bedrock API key does not change it. Nova is not a Marketplace subscribe model; the Anthropic first-use form is a separate later step for Claude only.
 
-A Support case was opened. Until AWS sets `authorizationStatus` to `AUTHORIZED`, this repo’s public demo runs the **same Strands tools** as **scripted**. A laptop can still point `MARKMAP_DESK_MODEL=mlx` at LM Studio. No model trace is fabricated as Bedrock. When AWS unblocks invoke, set `MARKMAP_DESK_MODEL=bedrock` and `MARKMAP_DISABLE_BEDROCK=0`.
+A Support case was opened. Until AWS sets `authorizationStatus` to `AUTHORIZED`, this repo’s public demo runs the **same Strands tools** on the built-in desk model. A laptop can still point `MARKMAP_DESK_MODEL=mlx` at LM Studio. No model trace is fabricated as Bedrock. When AWS unblocks invoke, set `MARKMAP_DESK_MODEL=bedrock` and `MARKMAP_DISABLE_BEDROCK=0`.
 
 Cron / EventBridge: `POST /api/desk/sweep` with header `X-Markmap-Secret`.
 
