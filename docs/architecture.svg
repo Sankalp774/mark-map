@@ -1,129 +1,140 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 980" font-family="IBM Plex Sans, ui-sans-serif, system-ui, sans-serif">
-  <rect width="1280" height="980" fill="#f7f3ec"/>
-  <text x="40" y="36" font-size="20" font-weight="600" fill="#1c1917">Mark Map — target architecture</text>
-  <text x="40" y="56" font-size="12" fill="#57534e">Professional Agents · Strands agentic loop on Amazon Bedrock · Python is the system of record for marks, completeness, and publish</text>
-  <text x="40" y="74" font-size="11" fill="#78716c">Invariant: empty cell ≠ 0. Family pane never receives teacher_brief or PTM wording. Eval gates invented_marks = 0, leaked_teacher_briefs = 0.</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" font-family="IBM Plex Sans, ui-sans-serif, system-ui, sans-serif">
+  <rect width="1200" height="820" fill="#f6f1e8"/>
+  <text x="40" y="40" font-size="22" font-weight="600" fill="#1c1917">Mark Map architecture</text>
+  <text x="40" y="62" font-size="13" fill="#57534e">Request path · multi-agent desk · Strands agent loop</text>
 
-  <!-- L1 actors -->
-  <text x="40" y="108" font-size="10" font-weight="600" letter-spacing="0.12em" fill="#a8a29e">L1  PRINCIPALS</text>
-  <rect x="40" y="118" width="380" height="88" rx="14" fill="#fffdf8" stroke="#e7e0d4"/>
-  <text x="56" y="142" font-size="13" font-weight="600" fill="#1c1917">Teacher door</text>
-  <text x="56" y="160" font-size="11" fill="#57534e">teacher@markmap.demo · class map, Run desk, PATCH cells</text>
-  <text x="56" y="176" font-size="11" fill="#57534e">Owns judgement: fill yellow empty cells</text>
-  <text x="56" y="192" font-size="11" fill="#57534e">Sees teacher_brief + family_brief</text>
-  <rect x="436" y="118" width="380" height="88" rx="14" fill="#fffdf8" stroke="#e7e0d4"/>
-  <text x="452" y="142" font-size="13" font-weight="600" fill="#1c1917">Student door</text>
-  <text x="452" y="160" font-size="11" fill="#57534e">ravi@markmap.demo · own row only</text>
-  <text x="452" y="176" font-size="11" fill="#57534e">Numbers + family-safe copy</text>
-  <text x="452" y="192" font-size="11" fill="#57534e">No teacher_brief</text>
-  <rect x="832" y="118" width="408" height="88" rx="14" fill="#fffdf8" stroke="#e7e0d4"/>
-  <text x="848" y="142" font-size="13" font-weight="600" fill="#1c1917">Parent door</text>
-  <text x="848" y="160" font-size="11" fill="#57534e">parent.ravi@markmap.demo · same numbers</text>
-  <text x="848" y="176" font-size="11" fill="#57534e">family_brief template only</text>
-  <text x="848" y="192" font-size="11" fill="#57534e">No PTM talking points · Ask = marksheet FAQ, not the desk agent</text>
+  <!-- ========== 1 REQUEST ARCHITECTURE ========== -->
+  <rect x="32" y="84" width="1136" height="200" rx="18" fill="#fffdf8" stroke="#e7e0d4"/>
+  <text x="52" y="112" font-size="11" font-weight="600" letter-spacing="0.14em" fill="#a8a29e">1  REQUEST ARCHITECTURE</text>
 
-  <!-- L2 edge -->
-  <text x="40" y="236" font-size="10" font-weight="600" letter-spacing="0.12em" fill="#a8a29e">L2  EDGE  ·  AWS</text>
-  <rect x="40" y="246" width="600" height="92" rx="14" fill="#ecfeff" stroke="#67e8f9"/>
-  <text x="56" y="270" font-size="13" font-weight="600" fill="#1c1917">AWS App Runner  ·  HTTPS  ·  container python -m markmap</text>
-  <text x="56" y="288" font-size="11" fill="#57534e">Instance role (no long-lived AKIA in env) · region us-west-2</text>
-  <text x="56" y="304" font-size="11" fill="#57534e">Health: GET /api/health → backend=bedrock  model=us.anthropic.claude-sonnet-4-6 | amazon.nova-lite-v1:0</text>
-  <text x="56" y="320" font-size="11" fill="#57534e">Auth: HttpOnly session cookie · role ∈ {teacher, student, parent}</text>
-  <rect x="660" y="246" width="580" height="92" rx="14" fill="#ecfeff" stroke="#67e8f9"/>
-  <text x="676" y="270" font-size="13" font-weight="600" fill="#1c1917">Amazon EventBridge schedule</text>
-  <text x="676" y="288" font-size="11" fill="#57534e">POST /api/desk/sweep  header X-Markmap-Secret</text>
-  <text x="676" y="304" font-size="11" fill="#57534e">Same Strands tools as Run desk · observe → plan → act nags</text>
-  <text x="676" y="320" font-size="11" fill="#57534e">Optional later: Bedrock AgentCore Runtime  POST /invocations {action:sweep}</text>
+  <rect x="52" y="128" width="130" height="56" rx="12" fill="#fff" stroke="#d6d3d1"/>
+  <text x="117" y="152" text-anchor="middle" font-size="12" font-weight="600" fill="#1c1917">Teacher</text>
+  <text x="117" y="168" text-anchor="middle" font-size="10" fill="#78716c">student · parent</text>
 
-  <!-- L3 API -->
-  <text x="40" y="368" font-size="10" font-weight="600" letter-spacing="0.12em" fill="#a8a29e">L3  APPLICATION  ·  FastAPI</text>
-  <rect x="40" y="378" width="300" height="118" rx="14" fill="#fffdf8" stroke="#e7e0d4"/>
-  <text x="56" y="402" font-size="12" font-weight="600" fill="#1c1917">Human writes</text>
-  <text x="56" y="422" font-size="11" fill="#57534e">PATCH /papers/{id}/students/{roll}/cells/{qid}</text>
-  <text x="56" y="438" font-size="11" fill="#57534e">PATCH /papers/{id}/questions/{qid}  chapter</text>
-  <text x="56" y="454" font-size="11" fill="#57534e">POST ingest/screenshot  (Tesseract OCR)</text>
-  <text x="56" y="470" font-size="11" fill="#57534e">Only path that may fill a yellow cell</text>
-  <rect x="356" y="378" width="300" height="118" rx="14" fill="#ecfeff" stroke="#67e8f9"/>
-  <text x="372" y="402" font-size="12" font-weight="600" fill="#1c1917">Agent writes (tools only)</text>
-  <text x="372" y="422" font-size="11" fill="#57534e">POST /api/desk/run</text>
-  <text x="372" y="438" font-size="11" fill="#57534e">POST /api/desk/run  {prompt}  cheat box</text>
-  <text x="372" y="454" font-size="11" fill="#57534e">POST /api/desk/sweep</text>
-  <text x="372" y="470" font-size="11" fill="#57534e">Never a direct mark write from the model</text>
-  <rect x="672" y="378" width="284" height="118" rx="14" fill="#fffdf8" stroke="#e7e0d4"/>
-  <text x="688" y="402" font-size="12" font-weight="600" fill="#1c1917">Reads</text>
-  <text x="688" y="422" font-size="11" fill="#57534e">GET /api/me  /class  /student/{roll}</text>
-  <text x="688" y="438" font-size="11" fill="#57534e">GET /api/health  backend + model id</text>
-  <text x="688" y="454" font-size="11" fill="#57534e">POST /api/query  marksheet FAQ only</text>
-  <text x="688" y="470" font-size="11" fill="#57534e">Role filter: teacher_brief stripped</text>
-  <rect x="972" y="378" width="268" height="118" rx="14" fill="#f5f3ff" stroke="#ddd6fe"/>
-  <text x="988" y="402" font-size="12" font-weight="600" fill="#1c1917">Policy at the door</text>
-  <text x="988" y="422" font-size="11" fill="#57534e">briefs.blocked if any cell empty</text>
-  <text x="988" y="438" font-size="11" fill="#57534e">family template ≠ teacher template</text>
-  <text x="988" y="454" font-size="11" fill="#57534e">eval: invented_marks / leaked briefs</text>
-  <text x="988" y="470" font-size="11" fill="#57534e">Demo password · MARKMAP_SECRET</text>
+  <path d="M190 156 H230" stroke="#1c1917" stroke-width="1.6" marker-end="url(#arr)"/>
 
-  <!-- L4 strands vs python -->
-  <text x="40" y="526" font-size="10" font-weight="600" letter-spacing="0.12em" fill="#a8a29e">L4  AGENTIC LOOP  vs  SYSTEM OF RECORD</text>
-  <rect x="40" y="536" width="620" height="250" rx="16" fill="#ecfeff" stroke="#22d3ee"/>
-  <text x="56" y="562" font-size="14" font-weight="600" fill="#1c1917">Strands Agents SDK  ·  one desk Agent</text>
-  <text x="56" y="580" font-size="11" fill="#57534e">strands.Agent(model=BedrockModel, tools=[…], hooks=[PolicyHook])</text>
-  <text x="56" y="596" font-size="11" fill="#57534e">Loop: model → tool_use → tool_result → model until stop  ·  observe → plan → act</text>
+  <rect x="236" y="128" width="150" height="56" rx="12" fill="#ecfeff" stroke="#67e8f9"/>
+  <text x="311" y="152" text-anchor="middle" font-size="12" font-weight="600" fill="#1c1917">HTTPS edge</text>
+  <text x="311" y="168" text-anchor="middle" font-size="10" fill="#78716c">App Runner</text>
 
-  <rect x="56" y="610" width="280" height="158" rx="12" fill="#fff" stroke="#67e8f9"/>
-  <text x="72" y="632" font-size="12" font-weight="600" fill="#1c1917">BedrockModel</text>
-  <text x="72" y="650" font-size="11" fill="#57534e">bedrock-runtime Converse</text>
-  <text x="72" y="666" font-size="11" fill="#57534e">us-west-2 on-demand / US CRIS</text>
-  <text x="72" y="682" font-size="11" fill="#57534e">us.anthropic.claude-sonnet-4-6</text>
-  <text x="72" y="698" font-size="11" fill="#57534e">fallback amazon.nova-lite-v1:0</text>
-  <text x="72" y="714" font-size="11" fill="#57534e">IAM: bedrock:InvokeModel</text>
-  <text x="72" y="730" font-size="11" fill="#57534e">+ inference-profile ARN</text>
-  <text x="72" y="746" font-size="11" fill="#57534e">No Bedrock long-term API key</text>
+  <path d="M394 156 H434" stroke="#1c1917" stroke-width="1.6" marker-end="url(#arr)"/>
 
-  <rect x="352" y="610" width="288" height="158" rx="12" fill="#fff" stroke="#67e8f9"/>
-  <text x="368" y="632" font-size="12" font-weight="600" fill="#1c1917">@tools  (allowed)</text>
-  <text x="368" y="650" font-size="11" fill="#57534e">1  list_incomplete_rows</text>
-  <text x="368" y="666" font-size="11" fill="#57534e">2  class_hotspots</text>
-  <text x="368" y="682" font-size="11" fill="#57534e">3  write_student_briefs</text>
-  <text x="368" y="698" font-size="11" fill="#57534e">    → Python refuse if incomplete</text>
-  <text x="368" y="714" font-size="11" fill="#57534e">4  run_desk_nags</text>
-  <text x="368" y="730" font-size="11" fill="#57534e">    fill-marks task | reteach proposal</text>
-  <text x="368" y="746" font-size="11" fill="#57534e">A desk run exists only if tools ran</text>
+  <rect x="440" y="128" width="150" height="56" rx="12" fill="#fff" stroke="#d6d3d1"/>
+  <text x="515" y="152" text-anchor="middle" font-size="12" font-weight="600" fill="#1c1917">FastAPI</text>
+  <text x="515" y="168" text-anchor="middle" font-size="10" fill="#78716c">cookie · role</text>
 
-  <rect x="680" y="536" width="560" height="250" rx="16" fill="#fff7ed" stroke="#fdba74"/>
-  <text x="696" y="562" font-size="14" font-weight="600" fill="#1c1917">Deterministic kernel  ·  Python owns facts</text>
-  <text x="696" y="580" font-size="11" fill="#57534e">The model never recaps a cycle Python already finished. Tools call these modules.</text>
+  <!-- fork -->
+  <path d="M598 156 H640" stroke="#1c1917" stroke-width="1.6"/>
+  <path d="M640 156 V132 H668" stroke="#1c1917" stroke-width="1.6" marker-end="url(#arr)"/>
+  <path d="M640 156 V180 H668" stroke="#1c1917" stroke-width="1.6" marker-end="url(#arr)"/>
 
-  <rect x="696" y="594" width="252" height="80" rx="10" fill="#fff" stroke="#fdba74"/>
-  <text x="712" y="616" font-size="12" font-weight="600" fill="#1c1917">analyser.py</text>
-  <text x="712" y="632" font-size="11" fill="#57534e">map_paper · parse_marks</text>
-  <text x="712" y="648" font-size="11" fill="#57534e">analyse_row · class_hotspots</text>
-  <rect x="964" y="594" width="256" height="80" rx="10" fill="#fff" stroke="#fdba74"/>
-  <text x="980" y="616" font-size="12" font-weight="600" fill="#1c1917">briefs.py</text>
-  <text x="980" y="632" font-size="11" fill="#57534e">teacher vs family templates</text>
-  <text x="980" y="648" font-size="11" fill="#57534e">blocked iff any cell empty</text>
-  <rect x="696" y="686" width="252" height="80" rx="10" fill="#fff" stroke="#fdba74"/>
-  <text x="712" y="708" font-size="12" font-weight="600" fill="#1c1917">desk.py + workspace</text>
-  <text x="712" y="724" font-size="11" fill="#57534e">incomplete scripts · PTM window</text>
-  <text x="712" y="740" font-size="11" fill="#57534e">nags · interventions</text>
-  <rect x="964" y="686" width="256" height="80" rx="10" fill="#fff" stroke="#fdba74"/>
-  <text x="980" y="708" font-size="12" font-weight="600" fill="#1c1917">store  data/markmap.json</text>
-  <text x="980" y="724" font-size="11" fill="#57534e">atomic replace · one class file</text>
-  <text x="980" y="740" font-size="11" fill="#57534e">App Runner volume for durability</text>
+  <rect x="674" y="108" width="210" height="48" rx="12" fill="#fff7ed" stroke="#fdba74"/>
+  <text x="779" y="128" text-anchor="middle" font-size="12" font-weight="600" fill="#1c1917">Human write</text>
+  <text x="779" y="144" text-anchor="middle" font-size="10" fill="#78716c">PATCH cell · chapter · OCR</text>
 
-  <!-- L5 policy + AWS -->
-  <text x="40" y="816" font-size="10" font-weight="600" letter-spacing="0.12em" fill="#a8a29e">L5  HARDENING  ·  IAM  ·  DATA PLANE</text>
-  <rect x="40" y="826" width="620" height="130" rx="14" fill="#f5f3ff" stroke="#c4b5fd"/>
-  <text x="56" y="850" font-size="13" font-weight="600" fill="#1c1917">PolicyHook  ·  BeforeToolCallEvent</text>
-  <text x="56" y="870" font-size="11" fill="#57534e">Cancelled before execution (not prompt-only):</text>
-  <text x="56" y="888" font-size="11" fill="#57534e">write_mark → alter_marks</text>
-  <text x="56" y="904" font-size="11" fill="#57534e">unlock_brief → unlock_incomplete_briefs</text>
-  <text x="56" y="920" font-size="11" fill="#57534e">set_question_chapter → change_chapter_without_approval</text>
-  <text x="56" y="942" font-size="11" fill="#57534e">event.cancel_tool = policy.refuse(action).reason · logged</text>
-  <rect x="680" y="826" width="560" height="130" rx="14" fill="#eff6ff" stroke="#93c5fd"/>
-  <text x="696" y="850" font-size="13" font-weight="600" fill="#1c1917">Amazon Bedrock  ·  IAM  ·  no keys in image</text>
-  <text x="696" y="870" font-size="11" fill="#57534e">App Runner instance role → sts:AssumeRole → Converse</text>
-  <text x="696" y="886" font-size="11" fill="#57534e">Allow: bedrock:InvokeModel, InvokeModelWithResponseStream</text>
-  <text x="696" y="902" font-size="11" fill="#57534e">Resource: foundation-model/* and inference-profile/*</text>
-  <text x="696" y="918" font-size="11" fill="#57534e">Tesseract on instance for picture reports (not the LLM)</text>
-  <text x="696" y="942" font-size="11" fill="#57534e">Budget alarm · credits on classic account · no Organization join</text>
+  <rect x="674" y="164" width="210" height="48" rx="12" fill="#ecfeff" stroke="#22d3ee"/>
+  <text x="779" y="184" text-anchor="middle" font-size="12" font-weight="600" fill="#1c1917">Agent write</text>
+  <text x="779" y="200" text-anchor="middle" font-size="10" fill="#78716c">POST /desk/run · /sweep</text>
+
+  <path d="M892 132 H920 V156 H948" stroke="#1c1917" stroke-width="1.6" marker-end="url(#arr)"/>
+  <path d="M892 188 H920 V156" stroke="#1c1917" stroke-width="1.6"/>
+
+  <rect x="954" y="128" width="190" height="56" rx="12" fill="#f5f3ff" stroke="#c4b5fd"/>
+  <text x="1049" y="152" text-anchor="middle" font-size="12" font-weight="600" fill="#1c1917">JSON store</text>
+  <text x="1049" y="168" text-anchor="middle" font-size="10" fill="#78716c">marks · briefs · nags</text>
+
+  <text x="52" y="250" font-size="11" fill="#78716c">EventBridge → POST /api/desk/sweep uses the agent path. Parent/student GET never includes teacher_brief.</text>
+
+  <!-- ========== 2 MULTI-AGENT ========== -->
+  <rect x="32" y="300" width="1136" height="268" rx="18" fill="#fffdf8" stroke="#e7e0d4"/>
+  <text x="52" y="328" font-size="11" font-weight="600" letter-spacing="0.14em" fill="#a8a29e">2  MULTI-AGENT DESK</text>
+  <text x="52" y="348" font-size="12" fill="#57534e">One Strands orchestrator. Five specialist roles. Python executes; the orchestrator only calls tools.</text>
+
+  <!-- orchestrator -->
+  <rect x="420" y="368" width="360" height="72" rx="16" fill="#ecfeff" stroke="#0891b2" stroke-width="2"/>
+  <text x="600" y="396" text-anchor="middle" font-size="14" font-weight="600" fill="#1c1917">Desk Runner  ·  Strands Agent</text>
+  <text x="600" y="416" text-anchor="middle" font-size="11" fill="#57534e">Bedrock Converse  ·  observe → plan → act</text>
+
+  <!-- arrows down to specialists -->
+  <path d="M600 440 V462" stroke="#1c1917" stroke-width="1.4"/>
+  <path d="M140 462 H1060" stroke="#1c1917" stroke-width="1.4"/>
+  <path d="M140 462 V478" stroke="#1c1917" stroke-width="1.4" marker-end="url(#arr)"/>
+  <path d="M370 462 V478" stroke="#1c1917" stroke-width="1.4" marker-end="url(#arr)"/>
+  <path d="M600 462 V478" stroke="#1c1917" stroke-width="1.4" marker-end="url(#arr)"/>
+  <path d="M830 462 V478" stroke="#1c1917" stroke-width="1.4" marker-end="url(#arr)"/>
+  <path d="M1060 462 V478" stroke="#1c1917" stroke-width="1.4" marker-end="url(#arr)"/>
+
+  <rect x="52" y="482" width="176" height="64" rx="12" fill="#fff" stroke="#5eead4"/>
+  <text x="140" y="508" text-anchor="middle" font-size="12" font-weight="600" fill="#1c1917">Ingest Clerk</text>
+  <text x="140" y="526" text-anchor="middle" font-size="10" fill="#78716c">paper · OCR · load class</text>
+
+  <rect x="282" y="482" width="176" height="64" rx="12" fill="#fff" stroke="#c4b5fd"/>
+  <text x="370" y="508" text-anchor="middle" font-size="12" font-weight="600" fill="#1c1917">Paper Mapper</text>
+  <text x="370" y="526" text-anchor="middle" font-size="10" fill="#78716c">question → chapter</text>
+
+  <rect x="512" y="482" width="176" height="64" rx="12" fill="#fff" stroke="#fda4af"/>
+  <text x="600" y="508" text-anchor="middle" font-size="12" font-weight="600" fill="#1c1917">Score Clerk</text>
+  <text x="600" y="526" text-anchor="middle" font-size="10" fill="#78716c">cells · empty ≠ 0</text>
+
+  <rect x="742" y="482" width="176" height="64" rx="12" fill="#fff" stroke="#86efac"/>
+  <text x="830" y="508" text-anchor="middle" font-size="12" font-weight="600" fill="#1c1917">Analyser</text>
+  <text x="830" y="526" text-anchor="middle" font-size="10" fill="#78716c">hotspots · completeness</text>
+
+  <rect x="972" y="482" width="176" height="64" rx="12" fill="#fff" stroke="#7dd3fc"/>
+  <text x="1060" y="508" text-anchor="middle" font-size="12" font-weight="600" fill="#1c1917">Brief Writer</text>
+  <text x="1060" y="526" text-anchor="middle" font-size="10" fill="#78716c">teacher ≠ family</text>
+
+  <!-- policy bar -->
+  <rect x="52" y="556" width="1096" height="0" fill="none"/>
+  <rect x="200" y="556" width="800" height="36" rx="10" fill="#f5f3ff" stroke="#c4b5fd"/>
+  <text x="600" y="578" text-anchor="middle" font-size="12" fill="#1c1917">Policy gate  ·  cancel write_mark · unlock_brief · set_question_chapter</text>
+
+  <!-- ========== 3 AGENT LOOP ========== -->
+  <rect x="32" y="584" width="1136" height="212" rx="18" fill="#fffdf8" stroke="#e7e0d4"/>
+  <text x="52" y="612" font-size="11" font-weight="600" letter-spacing="0.14em" fill="#a8a29e">3  AGENT LOOP  (STRANDS)</text>
+
+  <rect x="80" y="640" width="160" height="70" rx="14" fill="#ecfeff" stroke="#22d3ee"/>
+  <text x="160" y="670" text-anchor="middle" font-size="13" font-weight="600" fill="#1c1917">Model</text>
+  <text x="160" y="688" text-anchor="middle" font-size="10" fill="#57534e">Bedrock Converse</text>
+
+  <path d="M248 675 H300" stroke="#1c1917" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="274" y="666" text-anchor="middle" font-size="10" fill="#78716c">tool_use</text>
+
+  <rect x="308" y="640" width="160" height="70" rx="14" fill="#fff" stroke="#d6d3d1"/>
+  <text x="388" y="670" text-anchor="middle" font-size="13" font-weight="600" fill="#1c1917">Tools</text>
+  <text x="388" y="688" text-anchor="middle" font-size="10" fill="#57534e">4 desk tools</text>
+
+  <path d="M476 675 H528" stroke="#1c1917" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="502" y="666" text-anchor="middle" font-size="10" fill="#78716c">BeforeToolCall</text>
+
+  <rect x="536" y="640" width="160" height="70" rx="14" fill="#f5f3ff" stroke="#c4b5fd"/>
+  <text x="616" y="670" text-anchor="middle" font-size="13" font-weight="600" fill="#1c1917">Hook</text>
+  <text x="616" y="688" text-anchor="middle" font-size="10" fill="#57534e">allow or cancel</text>
+
+  <path d="M704 675 H756" stroke="#1c1917" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="730" y="666" text-anchor="middle" font-size="10" fill="#78716c">execute</text>
+
+  <rect x="764" y="640" width="160" height="70" rx="14" fill="#fff7ed" stroke="#fdba74"/>
+  <text x="844" y="670" text-anchor="middle" font-size="13" font-weight="600" fill="#1c1917">Python SoR</text>
+  <text x="844" y="688" text-anchor="middle" font-size="10" fill="#57534e">facts · refuse empty</text>
+
+  <path d="M932 675 H984" stroke="#1c1917" stroke-width="1.6" marker-end="url(#arr)"/>
+  <text x="958" y="666" text-anchor="middle" font-size="10" fill="#78716c">tool_result</text>
+
+  <rect x="992" y="640" width="160" height="70" rx="14" fill="#ecfeff" stroke="#22d3ee"/>
+  <text x="1072" y="670" text-anchor="middle" font-size="13" font-weight="600" fill="#1c1917">Model</text>
+  <text x="1072" y="688" text-anchor="middle" font-size="10" fill="#57534e">next step or stop</text>
+
+  <!-- return loop -->
+  <path d="M1072 710 V746 H160 V710" stroke="#0891b2" stroke-width="1.5" fill="none" marker-end="url(#arr-c)"/>
+  <text x="616" y="766" text-anchor="middle" font-size="11" fill="#0e7490">repeat until stop  ·  list_incomplete_rows → hotspots → write_student_briefs → run_desk_nags</text>
+
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#1c1917"/>
+    </marker>
+    <marker id="arr-c" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#0891b2"/>
+    </marker>
+  </defs>
 </svg>
