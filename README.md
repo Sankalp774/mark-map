@@ -52,7 +52,7 @@ The six video beats are in [docs/demo.md](docs/demo.md).
 
 ## What the agent can and cannot do
 
-Live list: `GET /api/policy`.
+Live list: `GET /api/policy`. Teacher can grant a denied action from Overview (**Agent permissions**) or `PATCH /api/policy` `{ "action": "alter_marks", "allowed": true }`. Default is still refuse.
 
 **Run desk** always goes through one Strands `Agent`. Tools:
 
@@ -81,6 +81,15 @@ cp .env.example .env
 ```
 
 `GET /api/health` reports `backend` and `model`. GitHub **Pages cannot host this app** (it is FastAPI, not a static site). Use `make demo` locally, `docker build`, or **[Open in GitHub Codespaces](https://codespaces.new/Sankalp774/mark-map)** (port 8080, scripted).
+
+Switch brains (same Strands tools):
+
+| | Doc | Script |
+|---|---|---|
+| Scripted (demo) | — | `./scripts/run-scripted.sh` |
+| LM Studio / oMLX | [docs/lmstudio-ollama-mlx.md](docs/lmstudio-ollama-mlx.md) | `./scripts/run-lmstudio.sh` |
+| Ollama (MLX on Apple silicon) | same | `./scripts/run-ollama.sh` |
+| Amazon Bedrock | [docs/bedrock.md](docs/bedrock.md) | `./scripts/run-bedrock.sh` |
 
 ### Amazon Bedrock status (honest)
 
