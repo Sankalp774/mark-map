@@ -111,9 +111,7 @@ Cron / EventBridge: `POST /api/desk/sweep` with header `X-Markmap-Secret`.
 
 ## Architecture
 
-See [docs/architecture.md](docs/architecture.md) and [docs/architecture.svg](docs/architecture.svg).
-
-Browser → FastAPI → analyser.py + JSON store. Strands desk agent calls `@tools`. It never writes a mark. Published demo brain is **scripted**; Bedrock when AWS authorizes invoke.
+See [docs/architecture.md](docs/architecture.md) and [docs/architecture.svg](docs/architecture.svg) — **target** shape: App Runner + EventBridge + Strands on Bedrock Converse, Python as system of record, `PolicyHook` cancel on `write_mark` / `unlock_brief` / `set_question_chapter`. The published demo uses the same tools with a scripted model until AWS authorizes invoke.
 
 ## License
 

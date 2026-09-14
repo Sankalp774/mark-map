@@ -1,25 +1,129 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 920 420" font-family="IBM Plex Sans, system-ui, sans-serif">
-  <rect width="920" height="420" fill="#fbf7f0"/>
-  <text x="32" y="36" font-size="18" font-weight="600" fill="#1c1917">Mark Map</text>
-  <text x="32" y="56" font-size="12" fill="#57534e">Agent calls tools. Python owns marks.</text>
-  <rect x="32" y="80" width="180" height="72" rx="16" fill="#fffdf8" stroke="#e7e0d4"/>
-  <text x="48" y="122" font-size="13" fill="#1c1917">Teacher / student / parent</text>
-  <rect x="260" y="80" width="180" height="72" rx="16" fill="#fffdf8" stroke="#e7e0d4"/>
-  <text x="276" y="122" font-size="13" fill="#1c1917">FastAPI</text>
-  <rect x="488" y="48" width="200" height="136" rx="16" fill="#ecfeff" stroke="#67e8f9"/>
-  <text x="504" y="84" font-size="13" font-weight="600" fill="#1c1917">Strands desk Agent</text>
-  <text x="504" y="108" font-size="12" fill="#57534e">scripted, LM Studio, or Bedrock</text>
-  <text x="504" y="128" font-size="12" fill="#57534e">list_incomplete_rows</text>
-  <text x="504" y="146" font-size="12" fill="#57534e">write_student_briefs</text>
-  <text x="504" y="164" font-size="12" fill="#57534e">run_desk_nags</text>
-  <rect x="736" y="48" width="152" height="136" rx="16" fill="#fff7ed" stroke="#fdba74"/>
-  <text x="752" y="100" font-size="13" font-weight="600" fill="#1c1917">Python facts</text>
-  <text x="752" y="122" font-size="12" fill="#57534e">marks · briefs</text>
-  <text x="752" y="140" font-size="12" fill="#57534e">completeness</text>
-  <rect x="488" y="220" width="400" height="72" rx="16" fill="#f5f3ff" stroke="#ddd6fe"/>
-  <text x="504" y="250" font-size="13" fill="#1c1917">BeforeToolCall: write_mark / unlock_brief / set_question_chapter cancelled</text>
-  <text x="504" y="270" font-size="12" fill="#57534e">Teacher PATCH fills the yellow empty cell. Family never gets teacher_brief.</text>
-  <line x1="212" y1="116" x2="260" y2="116" stroke="#1c1917" stroke-width="1.5"/>
-  <line x1="440" y1="116" x2="488" y2="116" stroke="#1c1917" stroke-width="1.5"/>
-  <line x1="688" y1="116" x2="736" y2="116" stroke="#1c1917" stroke-width="1.5"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 980" font-family="IBM Plex Sans, ui-sans-serif, system-ui, sans-serif">
+  <rect width="1280" height="980" fill="#f7f3ec"/>
+  <text x="40" y="36" font-size="20" font-weight="600" fill="#1c1917">Mark Map — target architecture</text>
+  <text x="40" y="56" font-size="12" fill="#57534e">Professional Agents · Strands agentic loop on Amazon Bedrock · Python is the system of record for marks, completeness, and publish</text>
+  <text x="40" y="74" font-size="11" fill="#78716c">Invariant: empty cell ≠ 0. Family pane never receives teacher_brief or PTM wording. Eval gates invented_marks = 0, leaked_teacher_briefs = 0.</text>
+
+  <!-- L1 actors -->
+  <text x="40" y="108" font-size="10" font-weight="600" letter-spacing="0.12em" fill="#a8a29e">L1  PRINCIPALS</text>
+  <rect x="40" y="118" width="380" height="88" rx="14" fill="#fffdf8" stroke="#e7e0d4"/>
+  <text x="56" y="142" font-size="13" font-weight="600" fill="#1c1917">Teacher door</text>
+  <text x="56" y="160" font-size="11" fill="#57534e">teacher@markmap.demo · class map, Run desk, PATCH cells</text>
+  <text x="56" y="176" font-size="11" fill="#57534e">Owns judgement: fill yellow empty cells</text>
+  <text x="56" y="192" font-size="11" fill="#57534e">Sees teacher_brief + family_brief</text>
+  <rect x="436" y="118" width="380" height="88" rx="14" fill="#fffdf8" stroke="#e7e0d4"/>
+  <text x="452" y="142" font-size="13" font-weight="600" fill="#1c1917">Student door</text>
+  <text x="452" y="160" font-size="11" fill="#57534e">ravi@markmap.demo · own row only</text>
+  <text x="452" y="176" font-size="11" fill="#57534e">Numbers + family-safe copy</text>
+  <text x="452" y="192" font-size="11" fill="#57534e">No teacher_brief</text>
+  <rect x="832" y="118" width="408" height="88" rx="14" fill="#fffdf8" stroke="#e7e0d4"/>
+  <text x="848" y="142" font-size="13" font-weight="600" fill="#1c1917">Parent door</text>
+  <text x="848" y="160" font-size="11" fill="#57534e">parent.ravi@markmap.demo · same numbers</text>
+  <text x="848" y="176" font-size="11" fill="#57534e">family_brief template only</text>
+  <text x="848" y="192" font-size="11" fill="#57534e">No PTM talking points · Ask = marksheet FAQ, not the desk agent</text>
+
+  <!-- L2 edge -->
+  <text x="40" y="236" font-size="10" font-weight="600" letter-spacing="0.12em" fill="#a8a29e">L2  EDGE  ·  AWS</text>
+  <rect x="40" y="246" width="600" height="92" rx="14" fill="#ecfeff" stroke="#67e8f9"/>
+  <text x="56" y="270" font-size="13" font-weight="600" fill="#1c1917">AWS App Runner  ·  HTTPS  ·  container python -m markmap</text>
+  <text x="56" y="288" font-size="11" fill="#57534e">Instance role (no long-lived AKIA in env) · region us-west-2</text>
+  <text x="56" y="304" font-size="11" fill="#57534e">Health: GET /api/health → backend=bedrock  model=us.anthropic.claude-sonnet-4-6 | amazon.nova-lite-v1:0</text>
+  <text x="56" y="320" font-size="11" fill="#57534e">Auth: HttpOnly session cookie · role ∈ {teacher, student, parent}</text>
+  <rect x="660" y="246" width="580" height="92" rx="14" fill="#ecfeff" stroke="#67e8f9"/>
+  <text x="676" y="270" font-size="13" font-weight="600" fill="#1c1917">Amazon EventBridge schedule</text>
+  <text x="676" y="288" font-size="11" fill="#57534e">POST /api/desk/sweep  header X-Markmap-Secret</text>
+  <text x="676" y="304" font-size="11" fill="#57534e">Same Strands tools as Run desk · observe → plan → act nags</text>
+  <text x="676" y="320" font-size="11" fill="#57534e">Optional later: Bedrock AgentCore Runtime  POST /invocations {action:sweep}</text>
+
+  <!-- L3 API -->
+  <text x="40" y="368" font-size="10" font-weight="600" letter-spacing="0.12em" fill="#a8a29e">L3  APPLICATION  ·  FastAPI</text>
+  <rect x="40" y="378" width="300" height="118" rx="14" fill="#fffdf8" stroke="#e7e0d4"/>
+  <text x="56" y="402" font-size="12" font-weight="600" fill="#1c1917">Human writes</text>
+  <text x="56" y="422" font-size="11" fill="#57534e">PATCH /papers/{id}/students/{roll}/cells/{qid}</text>
+  <text x="56" y="438" font-size="11" fill="#57534e">PATCH /papers/{id}/questions/{qid}  chapter</text>
+  <text x="56" y="454" font-size="11" fill="#57534e">POST ingest/screenshot  (Tesseract OCR)</text>
+  <text x="56" y="470" font-size="11" fill="#57534e">Only path that may fill a yellow cell</text>
+  <rect x="356" y="378" width="300" height="118" rx="14" fill="#ecfeff" stroke="#67e8f9"/>
+  <text x="372" y="402" font-size="12" font-weight="600" fill="#1c1917">Agent writes (tools only)</text>
+  <text x="372" y="422" font-size="11" fill="#57534e">POST /api/desk/run</text>
+  <text x="372" y="438" font-size="11" fill="#57534e">POST /api/desk/run  {prompt}  cheat box</text>
+  <text x="372" y="454" font-size="11" fill="#57534e">POST /api/desk/sweep</text>
+  <text x="372" y="470" font-size="11" fill="#57534e">Never a direct mark write from the model</text>
+  <rect x="672" y="378" width="284" height="118" rx="14" fill="#fffdf8" stroke="#e7e0d4"/>
+  <text x="688" y="402" font-size="12" font-weight="600" fill="#1c1917">Reads</text>
+  <text x="688" y="422" font-size="11" fill="#57534e">GET /api/me  /class  /student/{roll}</text>
+  <text x="688" y="438" font-size="11" fill="#57534e">GET /api/health  backend + model id</text>
+  <text x="688" y="454" font-size="11" fill="#57534e">POST /api/query  marksheet FAQ only</text>
+  <text x="688" y="470" font-size="11" fill="#57534e">Role filter: teacher_brief stripped</text>
+  <rect x="972" y="378" width="268" height="118" rx="14" fill="#f5f3ff" stroke="#ddd6fe"/>
+  <text x="988" y="402" font-size="12" font-weight="600" fill="#1c1917">Policy at the door</text>
+  <text x="988" y="422" font-size="11" fill="#57534e">briefs.blocked if any cell empty</text>
+  <text x="988" y="438" font-size="11" fill="#57534e">family template ≠ teacher template</text>
+  <text x="988" y="454" font-size="11" fill="#57534e">eval: invented_marks / leaked briefs</text>
+  <text x="988" y="470" font-size="11" fill="#57534e">Demo password · MARKMAP_SECRET</text>
+
+  <!-- L4 strands vs python -->
+  <text x="40" y="526" font-size="10" font-weight="600" letter-spacing="0.12em" fill="#a8a29e">L4  AGENTIC LOOP  vs  SYSTEM OF RECORD</text>
+  <rect x="40" y="536" width="620" height="250" rx="16" fill="#ecfeff" stroke="#22d3ee"/>
+  <text x="56" y="562" font-size="14" font-weight="600" fill="#1c1917">Strands Agents SDK  ·  one desk Agent</text>
+  <text x="56" y="580" font-size="11" fill="#57534e">strands.Agent(model=BedrockModel, tools=[…], hooks=[PolicyHook])</text>
+  <text x="56" y="596" font-size="11" fill="#57534e">Loop: model → tool_use → tool_result → model until stop  ·  observe → plan → act</text>
+
+  <rect x="56" y="610" width="280" height="158" rx="12" fill="#fff" stroke="#67e8f9"/>
+  <text x="72" y="632" font-size="12" font-weight="600" fill="#1c1917">BedrockModel</text>
+  <text x="72" y="650" font-size="11" fill="#57534e">bedrock-runtime Converse</text>
+  <text x="72" y="666" font-size="11" fill="#57534e">us-west-2 on-demand / US CRIS</text>
+  <text x="72" y="682" font-size="11" fill="#57534e">us.anthropic.claude-sonnet-4-6</text>
+  <text x="72" y="698" font-size="11" fill="#57534e">fallback amazon.nova-lite-v1:0</text>
+  <text x="72" y="714" font-size="11" fill="#57534e">IAM: bedrock:InvokeModel</text>
+  <text x="72" y="730" font-size="11" fill="#57534e">+ inference-profile ARN</text>
+  <text x="72" y="746" font-size="11" fill="#57534e">No Bedrock long-term API key</text>
+
+  <rect x="352" y="610" width="288" height="158" rx="12" fill="#fff" stroke="#67e8f9"/>
+  <text x="368" y="632" font-size="12" font-weight="600" fill="#1c1917">@tools  (allowed)</text>
+  <text x="368" y="650" font-size="11" fill="#57534e">1  list_incomplete_rows</text>
+  <text x="368" y="666" font-size="11" fill="#57534e">2  class_hotspots</text>
+  <text x="368" y="682" font-size="11" fill="#57534e">3  write_student_briefs</text>
+  <text x="368" y="698" font-size="11" fill="#57534e">    → Python refuse if incomplete</text>
+  <text x="368" y="714" font-size="11" fill="#57534e">4  run_desk_nags</text>
+  <text x="368" y="730" font-size="11" fill="#57534e">    fill-marks task | reteach proposal</text>
+  <text x="368" y="746" font-size="11" fill="#57534e">A desk run exists only if tools ran</text>
+
+  <rect x="680" y="536" width="560" height="250" rx="16" fill="#fff7ed" stroke="#fdba74"/>
+  <text x="696" y="562" font-size="14" font-weight="600" fill="#1c1917">Deterministic kernel  ·  Python owns facts</text>
+  <text x="696" y="580" font-size="11" fill="#57534e">The model never recaps a cycle Python already finished. Tools call these modules.</text>
+
+  <rect x="696" y="594" width="252" height="80" rx="10" fill="#fff" stroke="#fdba74"/>
+  <text x="712" y="616" font-size="12" font-weight="600" fill="#1c1917">analyser.py</text>
+  <text x="712" y="632" font-size="11" fill="#57534e">map_paper · parse_marks</text>
+  <text x="712" y="648" font-size="11" fill="#57534e">analyse_row · class_hotspots</text>
+  <rect x="964" y="594" width="256" height="80" rx="10" fill="#fff" stroke="#fdba74"/>
+  <text x="980" y="616" font-size="12" font-weight="600" fill="#1c1917">briefs.py</text>
+  <text x="980" y="632" font-size="11" fill="#57534e">teacher vs family templates</text>
+  <text x="980" y="648" font-size="11" fill="#57534e">blocked iff any cell empty</text>
+  <rect x="696" y="686" width="252" height="80" rx="10" fill="#fff" stroke="#fdba74"/>
+  <text x="712" y="708" font-size="12" font-weight="600" fill="#1c1917">desk.py + workspace</text>
+  <text x="712" y="724" font-size="11" fill="#57534e">incomplete scripts · PTM window</text>
+  <text x="712" y="740" font-size="11" fill="#57534e">nags · interventions</text>
+  <rect x="964" y="686" width="256" height="80" rx="10" fill="#fff" stroke="#fdba74"/>
+  <text x="980" y="708" font-size="12" font-weight="600" fill="#1c1917">store  data/markmap.json</text>
+  <text x="980" y="724" font-size="11" fill="#57534e">atomic replace · one class file</text>
+  <text x="980" y="740" font-size="11" fill="#57534e">App Runner volume for durability</text>
+
+  <!-- L5 policy + AWS -->
+  <text x="40" y="816" font-size="10" font-weight="600" letter-spacing="0.12em" fill="#a8a29e">L5  HARDENING  ·  IAM  ·  DATA PLANE</text>
+  <rect x="40" y="826" width="620" height="130" rx="14" fill="#f5f3ff" stroke="#c4b5fd"/>
+  <text x="56" y="850" font-size="13" font-weight="600" fill="#1c1917">PolicyHook  ·  BeforeToolCallEvent</text>
+  <text x="56" y="870" font-size="11" fill="#57534e">Cancelled before execution (not prompt-only):</text>
+  <text x="56" y="888" font-size="11" fill="#57534e">write_mark → alter_marks</text>
+  <text x="56" y="904" font-size="11" fill="#57534e">unlock_brief → unlock_incomplete_briefs</text>
+  <text x="56" y="920" font-size="11" fill="#57534e">set_question_chapter → change_chapter_without_approval</text>
+  <text x="56" y="942" font-size="11" fill="#57534e">event.cancel_tool = policy.refuse(action).reason · logged</text>
+  <rect x="680" y="826" width="560" height="130" rx="14" fill="#eff6ff" stroke="#93c5fd"/>
+  <text x="696" y="850" font-size="13" font-weight="600" fill="#1c1917">Amazon Bedrock  ·  IAM  ·  no keys in image</text>
+  <text x="696" y="870" font-size="11" fill="#57534e">App Runner instance role → sts:AssumeRole → Converse</text>
+  <text x="696" y="886" font-size="11" fill="#57534e">Allow: bedrock:InvokeModel, InvokeModelWithResponseStream</text>
+  <text x="696" y="902" font-size="11" fill="#57534e">Resource: foundation-model/* and inference-profile/*</text>
+  <text x="696" y="918" font-size="11" fill="#57534e">Tesseract on instance for picture reports (not the LLM)</text>
+  <text x="696" y="942" font-size="11" fill="#57534e">Budget alarm · credits on classic account · no Organization join</text>
 </svg>
